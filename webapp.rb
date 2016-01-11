@@ -5,19 +5,12 @@ require 'json'
 
 
 class WebApp < Sinatra::Base
+  configure :development do
+    register Sinatra::Reloader
+  end
 
-  # set all the settings!
   configure do
-    # this is arguably not necessary... 'public'
-    # folder is the static content location by default
     set :public_folder, 'public'
-
-    # optionally configure Cache-Control headers on responses
-    # set :static_cache_control, [:public, :max_age => 300]
-
-    # if using mime types not known to Sinatra, uncomment and
-    # configure here (by file extension)
-    # mime_type :foo, 'text/foo'
   end
 
   get "/" do
@@ -28,17 +21,15 @@ class WebApp < Sinatra::Base
       "Hello"
   end
 
-
-def assoc_to_hash(assoc)
-  Hash[assoc.map{|e|
-    if e.is_a?(Erlang::Tuple)
-      [e.to_a[0], e.to_a[1]]
-    else
-      [nil, e]
-    end
-  }]
-end
-
+  def assoc_to_hash(assoc)
+    Hash[assoc.map{|e|
+      if e.is_a?(Erlang::Tuple)
+        [e.to_a[0], e.to_a[1]]
+      else
+        [nil, e]
+      end
+    }]
+  end
 
   get '/procs' do
       node = "test01@hoge"
@@ -62,5 +53,4 @@ end
       content_type :json
       JSON.generate({status: 'ok', procs: proc_infos})
   end
-
 end

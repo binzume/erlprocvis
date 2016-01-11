@@ -16,3 +16,6 @@ end
 
 p erl.rpc_call(erl.nodes[0], :erlang, :processes, [])
 
+p erl.rpc_call(erl.nodes[0], :maps, :from_list, [[Erlang::Tuple[:a,2],Erlang::Tuple[:b,4]]])
+p erl.rpc_call(erl.nodes[0], :maps, :to_list, [{a: 123, b: 456}])
+

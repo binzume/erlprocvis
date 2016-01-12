@@ -180,10 +180,9 @@ module Erlang
   class Node
     include Erlang
     attr_reader :name, :port, :soc
-    def initialize(name, port, cookie)
+    def initialize(name, port)
       @name = name
       @port = port
-      @cookie = cookie
       @soc = nil
     end
 
@@ -214,7 +213,7 @@ module Erlang
     DFLAG_UTF8_ATOMS = 0x10000
     DFLAG_MAP_TAG = 0x20000
 
-    def connect(port, selfnode)
+    def connect(port, selfnode, cookie)
       # handshake
       def read_msg(soc)
         len = r_int16(soc)
@@ -223,7 +222,7 @@ module Erlang
       def write_msg(soc, msg)
         soc.write([msg.length].pack("n*") + msg)
       end
-      soc = TCPSocket.open("localhost", port)
+      soc = TCPSocket.open((@name.split('@')[1] || "localhost"), port)
       version = 5
       flags = DFLAG_EXTENDED_REFERENCES | DFLAG_EXTENDED_PIDS_PORTS | DFLAG_NEW_FUN_TAGS | DFLAG_NEW_FLOATS | DFLAG_MAP_TAG
 
@@ -238,14 +237,14 @@ module Erlang
 
       challenge_msg = read_msg(soc)
       code, version, flags, challenge, peer_name = challenge_msg.unpack("AnNNA*")
-      digest = Digest::MD5.digest("#{@cookie}#{challenge}")
+      digest = Digest::MD5.digest("#{cookie}#{challenge}")
       challengeA = rand(0x7fffffff)
       response = ["r", challengeA].pack("AN")+digest
       write_msg(soc, response)
       @name = peer_name
 
       challenge2 = read_msg(soc)
-      if challenge2 == 'a'+Digest::MD5.digest("#{@cookie}#{challengeA}")
+      if challenge2 == 'a'+Digest::MD5.digest("#{cookie}#{challengeA}")
         @soc = soc
         soc
       else
@@ -261,14 +260,26 @@ module Erlang
 
   class Erl
     include Erlang
-    def initialize(node, cookie, auto_connect = true)
+    def initialize(node, cookie, host = "localhost", auto_connect = true)
       @node = node.to_sym
       @cookie = cookie
       @nodes = {}
-      Epmd.names.each{|(name,port)|
-        @nodes[name] = Node.new(name,port, cookie)
+      Epmd.names(host).each{|(name, port)|
+        @nodes[name] = Node.new(name+ '@' + host, port)
         if auto_connect
-          @nodes[name].connect(port,node)
+          @nodes[name].connect(port, node, cookie)
+        end
+      }
+    end
+
+    def connect(nodename)
+      host = nodename.to_s.split('@')[1] || "localhost"
+      Epmd.names(host).each{|(name, port)|
+        name += '@' + host
+        if name == nodename.to_s
+          node = Node.new(name, port)
+          node.connect(port, node, @cookie)
+          @nodes[name] = node
         end
       }
     end

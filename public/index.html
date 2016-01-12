@@ -20,7 +20,7 @@
 	void main() {
 		float r;
 		if (depth > 16.0) {
-			r = 1.0 / (1.0 + (depth - 16.0) * 0.1);
+			r = max(1.0 / (1.0 + (depth - 16.0) * 0.1), 0.25);
 		} else {
 			r = 1.0;
 		}

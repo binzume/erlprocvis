@@ -59,7 +59,7 @@ function check_url_fragment() {
 		// init nodes
 		for (var i=0; i<nodes.length; i++) {
 			var node = nodes[i];
-			if (node.proc.init_module.startsWith(search)) {
+			if (node.proc.init_module.startsWith(search) || node.proc.registered_name && node.proc.registered_name.startsWith(search)) {
 				node.color = [0, 1.0, 0, 1.0];
 			} else {
 				node.color = defaultNodeColor;
@@ -135,7 +135,13 @@ function proc_loaded(result) {
 		ctx.textBaseline = "middle";
 		ctx.fillStyle = "white";
 		circleText(ctx, node.name, 256, 256, 160, 0);
-		circleText(ctx, node.proc.init_module || "", 256, 256, 190, Math.PI * 0.3);
+		var name = "";
+		if (node.proc.registered_name && node.proc.registered_name.length>0) {
+			name = node.proc.registered_name;
+		} else {
+			name = node.proc.init_module || "";
+		}
+		circleText(ctx, name, 256, 256, 190, Math.PI * 0.3);
 		
 		node.tex = GL.Texture.fromImage(canvas, {});
 	}
@@ -225,6 +231,7 @@ var posX = 0;
 var posY = 0;
 var posZ = -20;
 var center = new GL.Vector(0,0,0);
+var target_center = new GL.Vector(0,0,0);
 var rot = 0;
 
 var mesh = GL.Mesh.plane({coords: true});
@@ -240,6 +247,7 @@ var tex02 = GL.Texture.fromURL('images/link_tex.png');
 gl.onupdate = function(seconds) {
 	rot += 45 * seconds;
 	adjust_pos(1);
+	center = center.multiply(0.8).add(target_center.multiply(0.2));
 };
 
 gl.ondraw = function() {
@@ -339,9 +347,9 @@ gl.onmouseup = function(e) {
 		}
 		if (target) {
 			console.log("click: " + target.name);
-			center.x = target.x;
-			center.y = target.y;
-			center.z = target.z;
+			target_center.x = target.x;
+			target_center.y = target.y;
+			target_center.z = target.z;
 			posX = 0;
 			posY = 0;
 		}

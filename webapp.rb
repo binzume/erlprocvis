@@ -39,10 +39,13 @@ class WebApp < Sinatra::Base
       proc_infos = erl.nodes.reduce([]){|acc, node|
         procs = erl.rpc_call(node, :erlang, :processes, [])
         acc += procs.map{|proc|
-          info = erl.rpc_call(node, :erlang, :process_info, [proc, [:initial_call, :links, :monitors, :message_queue_len, :total_heap_size ]])
+          info = erl.rpc_call(node, :erlang, :process_info, [proc, [:initial_call, :links, :monitors, :message_queue_len, :total_heap_size, :registered_name]])
           if info != :undefined
             infomap = assoc_to_hash(info)
-            infomap.merge({name: proc, alive: true, init_module: infomap[:initial_call].to_a[0]})
+            monitors = infomap[:monitors].map{|m| m[1]}
+            registered_name = infomap[:registered_name].empty? ? nil : infomap[:registered_name];
+            initial_call = infomap[:initial_call][0].to_s + ":" + infomap[:initial_call][1].to_s
+            infomap.merge({name: proc, alive: true, init_module: initial_call, registered_name: registered_name, monitors: monitors})
           else
             {name: proc, alive: false}
           end

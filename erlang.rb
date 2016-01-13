@@ -90,6 +90,8 @@ module Erlang
     TYPE_STRING    => lambda{|io| io.read(r_int16(io))},
     TYPE_LIST      => lambda{|io| a=(1..r_int32(io)).map{from_binary(io)};from_binary(io); a},
     TYPE_BINARY    => lambda{|io| Binary.new(io.read(r_int32(io)))},
+    TYPE_BIG_INT   => lambda{|io| sz = r_int8(io); s = r_int8(io) == 1?-1:1;
+                        io.read(sz).unpack("C*").reverse().reduce(0){|acc,b| (acc << 8) | b} * s},
     TYPE_PORT      => lambda{|io| Port.new(from_binary(io), r_int32(io), r_int8(io)) },
     TYPE_MAP       => lambda{|io| (1..r_int32(io)).reduce({}){|acc| acc[from_binary(io)] = from_binary(io); acc} },
     TYPE_PID       => lambda{|io|

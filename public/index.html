@@ -285,7 +285,6 @@ gl.ondraw = function() {
 		shader.draw(mesh);
 		gl.popMatrix();
 
-
 		node.tex.bind(0);
 		shader.draw(mesh);
 
@@ -314,7 +313,9 @@ gl.onmousedown = function(e) {
 
 gl.onmousemove = function(e) {
 	if (e.dragging) {
-		drag = true;
+		if (e.deltaX*e.deltaX + e.deltaY * e.deltaY > 2) {
+			drag = true;
+		}
 		if (button == 2) {
 			posZ += e.deltaY * 0.1;
 			if (posZ > -0.1) posZ = -0.1;
@@ -352,6 +353,7 @@ gl.onmouseup = function(e) {
 			target_center.z = target.z;
 			posX = 0;
 			posY = 0;
+			posZ = Math.max(-20, posZ);
 		}
 	}
 };

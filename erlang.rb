@@ -62,6 +62,17 @@ module Erlang
    alias inspect to_s
   end
 
+  class Fun
+    attr_accessor :code
+    def initialize(code)
+      @code = code
+    end
+    def to_s
+      "#Fun<...>"
+    end
+   alias inspect to_s
+  end
+
   TYPE_NEW_FLOAT = 70
   TYPE_SMALL_INT = 97
   TYPE_INTEGER = 98
@@ -76,6 +87,7 @@ module Erlang
   TYPE_LIST = 108
   TYPE_BINARY = 109
   TYPE_BIG_INT = 110
+  TYPE_FUN = 112
   TYPE_NEW_REF = 114
   TYPE_MAP = 116
 
@@ -102,7 +114,8 @@ module Erlang
                         c = r_int16(io)
                         node = from_binary(io)
                         c2 = r_int8(io)
-                        Ref.new(node, c, (1..c2).map{ r_int32(io)}) }
+                        Ref.new(node, c, (1..c2).map{ r_int32(io)}) },
+    TYPE_FUN       => lambda{|io| Fun.new(io.read(r_int32(io)-4))}
   }
   @@encoder = {
     Integer => lambda{|term| [TYPE_INTEGER, term].pack("cN") },
@@ -118,7 +131,8 @@ module Erlang
     Port    => lambda{|term| [TYPE_PORT].pack("c") + to_binary(term.node) + [term.id, term.creation].pack("Nc") },
     Pid     => lambda{|term| [TYPE_PID].pack("c") + to_binary(term.node) + [term.id, term.serial, term.creation].pack("NNc") },
     Ref     => lambda{|term| [TYPE_NEW_REF, term.ids.size].pack("cn") +
-                              to_binary(term.node) + ([term.ids.size] + term.ids).pack("cN#{term.ids.length}") }
+                              to_binary(term.node) + ([term.ids.size] + term.ids).pack("cN#{term.ids.length}") },
+    Fun     => lambda{|term| [TYPE_FUN, term.code.size+4].pack("cN") + term.code }
   }
 
   def r_int8(io)
@@ -128,7 +142,7 @@ module Erlang
     io.read(2).unpack("n")[0]
   end
   def r_int32(io)
-    io.read(4).unpack("N")[0]
+    io.read(4).unpack("l>")[0]
   end
   module_function :r_int8, :r_int16, :r_int32
 
@@ -311,6 +325,13 @@ module Erlang
       else
         res
       end
+    end
+
+    def eval(node, code, params = nil)
+      scaned = rpc_call(node, :erl_scan, :string, [code])[1]
+      exp = rpc_call(node, :erl_parse, :parse_exprs, [scaned])[1][0]
+      fun = rpc_call(node, :erl_eval, :expr, [exp, []])[1]
+      params ? rpc_call(node, :erlang, :apply, [fun, params]) : fun
     end
 
     def nodes()

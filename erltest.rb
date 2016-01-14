@@ -1,19 +1,28 @@
 #!/usr/bin/env ruby
 require_relative 'erlang'
 
+# test data
+dataset = [
+  [123456, "int"],
+  [-123456, "-int"],
+  ["hello", "str"],
+  [1000000000000000000, "bigint"],
+  [-1000000000000000000, "-bigint"],
+  [:abc, "atom"],
+  [[1,"2",3], "list"],
+  [{a: 1, b: "abc"}, "map"],
+  [Erlang::Tuple[:a, 1, 2], "tuple"]
+]
+
 # ext_binary
-Erlang::from_binary(StringIO.new(Erlang::to_binary(123456))) == 123456 or raise "int"
-Erlang::from_binary(StringIO.new(Erlang::to_binary(-123456))) == -123456 or raise "-int"
-Erlang::from_binary(StringIO.new(Erlang::to_binary("hello"))) == "hello" or raise "str"
-Erlang::from_binary(StringIO.new(Erlang::to_binary(1000000000000000000))) == 1000000000000000000 or raise "bignum"
-Erlang::from_binary(StringIO.new(Erlang::to_binary(-1000000000000000000))) == -1000000000000000000 or raise "-bignum"
-Erlang::from_binary(StringIO.new(Erlang::to_binary(:abc))) == :abc or raise "atom"
-Erlang::from_binary(StringIO.new(Erlang::to_binary([1,"2",3]))) == [1,"2",3] or raise "list"
-Erlang::from_binary(StringIO.new(Erlang::to_binary({a: 1, b: "abc"}))) == {a: 1, b: "abc"} or raise "map"
+dataset.each{|v, txt|
+  Erlang::from_binary(StringIO.new(Erlang::to_binary(v))) == v or raise txt
+}
 Erlang::from_binary(StringIO.new(Erlang::to_binary(true))) == :true or raise "bool"
+Erlang::from_binary(StringIO.new(Erlang::to_binary(false))) == :false or raise "bool"
 
 # connect
-node = "hoge@fuga"
+node = "rubynode@test"
 cookie = File.read(ENV['HOME']+"/.erlang.cookie")
 erl = Erlang::Erl.new(node, cookie)
 if erl.nodes.empty?
@@ -28,15 +37,18 @@ end
 node = erl.nodes[0]
 
 # rpc_call
+dataset.each{|v, txt|
+  puts txt
+  erl.rpc_call(node, :erlang, :hd, [ [v] ]) == v or raise txt
+}
+
 p erl.rpc_call(node, :erlang, :processes, [])
-
-p erl.rpc_call(node, :maps, :from_list, [[Erlang::Tuple[:a,2],Erlang::Tuple[:b,4]]])
-p erl.rpc_call(node, :maps, :to_list, [{a: 123, b: 456}])
-
-p erl.rpc_call(node, :maps, :to_list, [{bool: true, a: -18956777777777777777777, binary: Erlang::Binary.new("BinaryString")}])
 
 # eval
 erl.eval(node, "1+1.") == 2 or raise "eval"
 erl.eval(node, "fun(A)-> A*2 end.", [123]) == 123*2 or raise "eval+apply"
+
+erl.down()
+
 puts "ok."
 

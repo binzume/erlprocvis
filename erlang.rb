@@ -75,25 +75,26 @@ module Erlang
 
   TYPE_NEW_FLOAT = 70
   TYPE_SMALL_INT = 97
-  TYPE_INTEGER = 98
-  TYPE_FLOAT = 99
-  TYPE_ATOM = 100
-  TYPE_PORT = 102
-  TYPE_PID = 103
+  TYPE_INTEGER   = 98
+  TYPE_FLOAT     = 99
+  TYPE_ATOM      = 100
+  TYPE_PORT      = 102
+  TYPE_PID       = 103
   TYPE_SMALL_TUPLE = 104
   TYPE_LARGE_TUPLE = 105
-  TYPE_NIL = 106
-  TYPE_STRING = 107
-  TYPE_LIST = 108
-  TYPE_BINARY = 109
-  TYPE_BIG_INT = 110
-  TYPE_FUN = 112
-  TYPE_NEW_REF = 114
-  TYPE_MAP = 116
+  TYPE_NIL       = 106
+  TYPE_STRING    = 107
+  TYPE_LIST      = 108
+  TYPE_BINARY    = 109
+  TYPE_SMALL_BIG = 110
+  TYPE_LARGE_BIG = 111
+  TYPE_FUN       = 112
+  TYPE_NEW_REF   = 114
+  TYPE_MAP       = 116
 
   @@decoder = {
     TYPE_SMALL_INT => lambda{|io| r_int8(io)},
-    TYPE_INTEGER   => lambda{|io| r_int32(io)},
+    TYPE_INTEGER   => lambda{|io| io.read(4).unpack("l>")[0]},
     TYPE_FLOAT     => lambda{|io| io.read(8).unpack("G")[0]},
     TYPE_ATOM      => lambda{|io| io.read(r_int16(io)).to_sym},
     TYPE_SMALL_TUPLE => lambda{|io| Tuple.new((1..r_int8(io)).map{from_binary(io)})},
@@ -102,8 +103,8 @@ module Erlang
     TYPE_STRING    => lambda{|io| io.read(r_int16(io))},
     TYPE_LIST      => lambda{|io| a=(1..r_int32(io)).map{from_binary(io)};from_binary(io); a},
     TYPE_BINARY    => lambda{|io| Binary.new(io.read(r_int32(io)))},
-    TYPE_BIG_INT   => lambda{|io| sz = r_int8(io); s = r_int8(io) == 1?-1:1;
-                        io.read(sz).unpack("C*").reverse().reduce(0){|acc,b| (acc << 8) | b} * s},
+    TYPE_SMALL_BIG => lambda{|io| sz = r_int8(io); r_bignum(io, sz) },
+    TYPE_LARGE_BIG => lambda{|io| sz = r_int32(io); r_bignum(io, sz) },
     TYPE_PORT      => lambda{|io| Port.new(from_binary(io), r_int32(io), r_int8(io)) },
     TYPE_MAP       => lambda{|io| (1..r_int32(io)).reduce({}){|acc| acc[from_binary(io)] = from_binary(io); acc} },
     TYPE_PID       => lambda{|io|
@@ -126,7 +127,7 @@ module Erlang
     Array   => lambda{|term| [TYPE_LIST, term.size].pack("cN") + term.map{|e| to_binary(e)}.join('') + TYPE_NIL.chr },
     Binary  => lambda{|term| [TYPE_BINARY, term.size].pack("cN") + term.value },
     Bignum  => lambda{|term| s=term<0?1:0;term=term.abs;b=[];while term>0 do b<<(term&0xff);term>>=8 end
-                             [TYPE_BIG_INT, b.size(), s].pack("ccc") + b.pack("c*") },
+                             [TYPE_LARGE_BIG, b.size(), s].pack("cNc") + b.pack("c*") },
     Hash    => lambda{|term| [TYPE_MAP, term.size].pack("cN") + term.map{|k,v| [to_binary(k), to_binary(v)]}.join('') },
     Port    => lambda{|term| [TYPE_PORT].pack("c") + to_binary(term.node) + [term.id, term.creation].pack("Nc") },
     Pid     => lambda{|term| [TYPE_PID].pack("c") + to_binary(term.node) + [term.id, term.serial, term.creation].pack("NNc") },
@@ -135,16 +136,20 @@ module Erlang
     Fun     => lambda{|term| [TYPE_FUN, term.code.size+4].pack("cN") + term.code }
   }
 
-  def r_int8(io)
+  def self.r_int8(io)
     !io.eof? && io.getc.ord
   end
-  def r_int16(io)
+  def self.r_int16(io)
     io.read(2).unpack("n")[0]
   end
-  def r_int32(io)
-    io.read(4).unpack("l>")[0]
+  def self.r_int32(io)
+    io.read(4).unpack("N")[0]
   end
-  module_function :r_int8, :r_int16, :r_int32
+  def self.r_bignum(io, sz)
+    s = r_int8(io)
+    n = io.read(sz).unpack("C*").reverse().reduce(0){|acc,b| (acc << 8) | b}
+    s == 1 ? -n : n
+  end
 
   def to_binary(term)
     if @@encoder[term.class]
@@ -163,7 +168,7 @@ module Erlang
   end
 
   def from_binary(sio)
-    t = r_int8(sio)
+    t = Erlang::r_int8(sio)
     if @@decoder[t]
       @@decoder[t].call(sio)
     else
@@ -194,22 +199,8 @@ module Erlang
   end
 
   class Node
-    include Erlang
     attr_reader :name, :port, :soc
-    def initialize(name, port)
-      @name = name
-      @port = port
-      @soc = nil
-    end
-
-    def send(header, msg)
-      packet = "p" + 131.chr + to_binary(header) + 131.chr + to_binary(msg)
-      @soc.write([packet.length].pack("N") + packet)
-    end
-    def recv()
-      len = @soc.read(4).unpack("N")[0]
-      @soc.read(len)
-    end
+    include Erlang
 
     DFLAG_PUBLISHED = 1
     DFLAG_ATOM_CACHE = 2
@@ -229,10 +220,25 @@ module Erlang
     DFLAG_UTF8_ATOMS = 0x10000
     DFLAG_MAP_TAG = 0x20000
 
+    def initialize(name, port)
+      @name = name
+      @port = port
+      @soc = nil
+    end
+
+    def send(header, msg)
+      packet = "p" + 131.chr + to_binary(header) + 131.chr + to_binary(msg)
+      @soc.write([packet.length].pack("N") + packet)
+    end
+    def recv()
+      len = @soc.read(4).unpack("N")[0]
+      @soc.read(len)
+    end
+
     def connect(port, selfnode, cookie)
       # handshake
       def read_msg(soc)
-        len = r_int16(soc)
+        len = Erlang::r_int16(soc)
         soc.read(len)
       end
       def write_msg(soc, msg)
@@ -267,45 +273,43 @@ module Erlang
         raise("handshake error(challenge2)")
       end
     end
-  end
 
-  def close()
-    @soc.close if @soc
-    @soc = nil
+    def close()
+      @soc.close if @soc
+      @soc = nil
+    end
   end
 
   class Erl
     include Erlang
+    CTRL_SEND = 2
+    CTRL_REG_SEND = 6
+
     def initialize(node, cookie, host = "localhost", auto_connect = true)
       @node = node.to_sym
       @cookie = cookie
       @nodes = {}
-      Epmd.names(host).each{|(name, port)|
-        @nodes[name] = Node.new(name+ '@' + host, port)
-        if auto_connect
-          @nodes[name].connect(port, node, cookie)
-        end
-      }
+      if auto_connect
+        Epmd.names(host).each{|(name, port)|
+          connect(name +"@" + host, port)
+        }
+      end
     end
 
-    def connect(nodename)
-      host = nodename.to_s.split('@')[1] || "localhost"
-      Epmd.names(host).each{|(name, port)|
-        name += '@' + host
-        if name == nodename.to_s
-          node = Node.new(name, port)
-          node.connect(port, node, @cookie)
-          @nodes[name] = node
-        end
-      }
+    def connect(nodename, port = nil)
+      if !port
+        host = nodename.to_s.split('@')[1] || "localhost"
+        pp = Epmd.names(host).find{|(name, port)| name == nodename.to_s.split('@')[0] } or raise "port not found."
+        port = pp[1]
+      end
+      node = Node.new(nodename, port)
+      node.connect(port, @node, @cookie)
+      @nodes[node.name] = node
     end
 
     def down()
       @nodes.each_value{|n| n.close()}
     end
-
-    CTRL_SEND = 2
-    CTRL_REG_SEND = 6
 
     def rpc_call(node, mod, fun, args)
       from = Pid.new(@node, 10, 1, 1)
@@ -318,7 +322,7 @@ module Erlang
       sio = StringIO.new(res)
       if sio.getc == 'p'
         r = []
-        while r_int8(sio) == 131
+        while Erlang::r_int8(sio) == 131
           r << from_binary(sio)
         end
         r[1][1]

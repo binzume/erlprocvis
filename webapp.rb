@@ -37,7 +37,6 @@ class WebApp < Sinatra::Base
       erl = Erlang::Erl.new(selfnode, cookie)
 
       proc_infos = erl.nodes.reduce([]){|acc, node|
-        get_name_fun = erl.eval(node, "fun(P)-> {dictionary,D}=erlang:process_info(P, dictionary), lists:keyfind('$initial_call',1, D) end.")
         procs = erl.rpc_call(node, :erlang, :processes, [])
         acc += procs.map{|proc|
           info = erl.rpc_call(node, :erlang, :process_info, [proc, [:initial_call, :links, :monitors, :message_queue_len, :total_heap_size, :registered_name]])
@@ -47,10 +46,9 @@ class WebApp < Sinatra::Base
             registered_name = infomap[:registered_name].empty? ? nil : infomap[:registered_name];
             initial_call = infomap[:initial_call][0].to_s + ":" + infomap[:initial_call][1].to_s
             if infomap[:initial_call][0] == :proc_lib
-              d = erl.rpc_call(node, :erlang, :apply, [get_name_fun, [proc]])
-              if d != :false
-                initial_call = d[1][0].to_s + ":" + d[1][1].to_s
-              end
+              d = erl.rpc_call(node, :proc_lib, :translate_initial_call, [proc])
+              initial_call = d[0].to_s + ":" + d[1].to_s
+              p initial_call
             end
             infomap.merge({name: proc, alive: true, init_module: initial_call, registered_name: registered_name, monitors: monitors})
           else

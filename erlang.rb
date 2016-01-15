@@ -1,4 +1,5 @@
 require 'socket'
+require 'thread'
 require 'stringio'
 require 'digest/md5'
 
@@ -12,18 +13,11 @@ module Erlang
    alias inspect to_s
   end
 
-  class Binary
-    attr_accessor :value
-    def initialize(s)
-      @value = s.to_s
-    end
+  class Binary < String
     def to_s
-      "<<" + @value.bytes.join(',') + ">>"
+      "<<" + bytes.join(',') + ">>"
     end
     alias inspect to_s
-    def size
-      @value.size
-    end
   end
 
   class Ref
@@ -37,11 +31,16 @@ module Erlang
 
   class Pid
     attr_accessor :node, :id, :serial, :creation
+    @@idseq = 0
     def initialize(node, id, serial, creation)
       @node = node
       @id = id
       @serial = serial
       @creation = creation
+    end
+    def self.create(selfnode)
+      @@idseq += 1
+      Pid.new(selfnode, @@idseq, 0, 0)
     end
     def to_s
       "<#{@node}:#{@creation}.#{@id}.#{@serial}>"
@@ -95,7 +94,7 @@ module Erlang
   @@decoder = {
     TYPE_SMALL_INT => lambda{|io| r_int8(io)},
     TYPE_INTEGER   => lambda{|io| io.read(4).unpack("l>")[0]},
-    TYPE_FLOAT     => lambda{|io| io.read(8).unpack("G")[0]},
+    TYPE_NEW_FLOAT => lambda{|io| io.read(8).unpack("G")[0]},
     TYPE_ATOM      => lambda{|io| io.read(r_int16(io)).to_sym},
     TYPE_SMALL_TUPLE => lambda{|io| Tuple.new((1..r_int8(io)).map{from_binary(io)})},
     TYPE_LARGE_TUPLE => lambda{|io| Tuple.new((1..r_int32(io)).map{from_binary(io)})},
@@ -108,13 +107,10 @@ module Erlang
     TYPE_PORT      => lambda{|io| Port.new(from_binary(io), r_int32(io), r_int8(io)) },
     TYPE_MAP       => lambda{|io| (1..r_int32(io)).reduce({}){|acc| acc[from_binary(io)] = from_binary(io); acc} },
     TYPE_PID       => lambda{|io|
-                        node = from_binary(io)
-                        (id,b,c) = io.read(9).unpack("NNc")
+                        node = from_binary(io); (id,b,c) = io.read(9).unpack("NNc")
                         Pid.new(node, id, b, c) },
     TYPE_NEW_REF   => lambda{|io|
-                        c = r_int16(io)
-                        node = from_binary(io)
-                        c2 = r_int8(io)
+                        c = r_int16(io); node = from_binary(io); c2 = r_int8(io)
                         Ref.new(node, c, (1..c2).map{ r_int32(io)}) },
     TYPE_FUN       => lambda{|io| Fun.new(io.read(r_int32(io)-4))}
   }
@@ -125,7 +121,7 @@ module Erlang
     Tuple   => lambda{|term| [TYPE_SMALL_TUPLE, term.size].pack("cc") + term.map{|e| to_binary(e)}.join('') },
     String  => lambda{|term| [TYPE_STRING, term.size].pack("cn") + term },
     Array   => lambda{|term| [TYPE_LIST, term.size].pack("cN") + term.map{|e| to_binary(e)}.join('') + TYPE_NIL.chr },
-    Binary  => lambda{|term| [TYPE_BINARY, term.size].pack("cN") + term.value },
+    Binary  => lambda{|term| [TYPE_BINARY, term.size].pack("cN") + term },
     Bignum  => lambda{|term| s=term<0?1:0;term=term.abs;b=[];while term>0 do b<<(term&0xff);term>>=8 end
                              [TYPE_LARGE_BIG, b.size(), s].pack("cNc") + b.pack("c*") },
     Hash    => lambda{|term| [TYPE_MAP, term.size].pack("cN") + term.map{|k,v| [to_binary(k), to_binary(v)]}.join('') },
@@ -137,18 +133,17 @@ module Erlang
   }
 
   def self.r_int8(io)
-    !io.eof? && io.getc.ord
+    io.getbyte
   end
   def self.r_int16(io)
-    io.read(2).unpack("n")[0]
+    !io.eof? && io.read(2).unpack("n")[0]
   end
   def self.r_int32(io)
     io.read(4).unpack("N")[0]
   end
   def self.r_bignum(io, sz)
-    s = r_int8(io)
-    n = io.read(sz).unpack("C*").reverse().reduce(0){|acc,b| (acc << 8) | b}
-    s == 1 ? -n : n
+    s = r_int8(io) == 1 ? -1 : 1
+    io.read(sz).unpack("C*").reverse().reduce(0){|acc,b| (acc << 8) + b * s}
   end
 
   def to_binary(term)
@@ -158,14 +153,12 @@ module Erlang
       @@encoder[Integer].call(term)
     elsif term.is_a?(Integer)
       @@encoder[Bignum].call(term)
-    elsif term == true
-      to_binary(:true)
-    elsif term == false
-      to_binary(:false)
-    elsif term == nil
+    elsif term == true || term == false
+      to_binary(term.to_s.to_sym)
+    elsif term.nil?
       TYPE_NIL.chr
     else
-      puts "unknown type #{term}"
+      raise "unknown type #{term}"
     end
   end
 
@@ -183,8 +176,7 @@ module Erlang
   class Epmd
     def self.names(host="localhost", port = 4369)
       def self.read_msg(soc)
-        len = soc.read(2).unpack("n")[0]
-        soc.read(len)
+        len = Erlang::r_int16(soc) and soc.read(len)
       end
       def self.write_msg(soc, msg)
         soc.write([msg.length].pack("n*") + msg)
@@ -238,25 +230,25 @@ module Erlang
     end
 
     def connect(port, selfnode, cookie)
-      # handshake
+      soc = TCPSocket.open((@name.split('@')[1] || "localhost"), port)
+
       def read_msg(soc)
-        len = Erlang::r_int16(soc)
-        soc.read(len)
+        len = Erlang::r_int16(soc) and soc.read(len)
       end
       def write_msg(soc, msg)
         soc.write([msg.length].pack("n*") + msg)
       end
-      soc = TCPSocket.open((@name.split('@')[1] || "localhost"), port)
+
+      # handshake
       version = 5
       flags = DFLAG_EXTENDED_REFERENCES | DFLAG_EXTENDED_PIDS_PORTS | DFLAG_NEW_FUN_TAGS | DFLAG_NEW_FLOATS | DFLAG_MAP_TAG
-
       msg = 'n' + [version].pack("n*") + [flags].pack("N*") + selfnode.to_s
-
       write_msg(soc, msg)
 
       status = read_msg(soc)
       if status != 's' + 'ok'
-        raise("handshake status: " + status)
+        soc.close()
+        raise("handshake error (status: #{status})")
       end
 
       challenge_msg = read_msg(soc)
@@ -268,12 +260,11 @@ module Erlang
       @name = peer_name
 
       challenge2 = read_msg(soc)
-      if challenge2 == 'a'+Digest::MD5.digest("#{cookie}#{challengeA}")
-        @soc = soc
-        soc
-      else
-        raise("handshake error(challenge2)")
+      if challenge2 != 'a'+Digest::MD5.digest("#{cookie}#{challengeA}")
+        soc.close()
+        raise("handshake error(challenge)")
       end
+      @soc = soc
     end
 
     def close()
@@ -291,6 +282,7 @@ module Erlang
       @node = node.to_sym
       @cookie = cookie
       @nodes = {}
+      @msgqueue = {}
       if auto_connect
         Epmd.names(host).each{|(name, port)|
           connect(name +"@" + host, port)
@@ -306,6 +298,21 @@ module Erlang
       end
       node = Node.new(nodename, port)
       node.connect(port, @node, @cookie)
+      Thread.start{
+        while(m = node.recv())
+          if m[0] == 'p'
+            sio = StringIO.new(m[1..-1])
+            r = []
+            while Erlang::r_int8(sio) == 131
+              r << from_binary(sio)
+            end
+            q = @msgqueue[r[0][2].id]
+            q.push(r[1]) if q
+          elsif m == ""
+            node.soc.write([0].pack("N"))  # TODO
+          end
+        end
+      }
       @nodes[node.name] = node
     end
 
@@ -314,23 +321,14 @@ module Erlang
     end
 
     def rpc_call(node, mod, fun, args)
-      from = Pid.new(@node, 10, 1, 1)
+      from = Pid.create(@node)
       ref = Ref.new(@node, 10, 1)
-      #ref = :undefined
-      to = :rex
       msg = Tuple[:'$gen_call', Tuple[from,ref], Tuple[:call, mod, fun, args, :user]]
-      @nodes[node].send(Tuple[CTRL_REG_SEND, from, :'', to], msg)
-      res = @nodes[node].recv()
-      sio = StringIO.new(res)
-      if sio.getc == 'p'
-        r = []
-        while Erlang::r_int8(sio) == 131
-          r << from_binary(sio)
-        end
-        r[1][1]
-      else
-        res
-      end
+      @msgqueue[from.id] = Queue.new
+      @nodes[node].send(Tuple[CTRL_REG_SEND, from, :'', :rex], msg)
+      res = @msgqueue[from.id].pop # wait for response
+      @msgqueue.delete(from.id)
+      res[1]
     end
 
     def eval(node, code, params = nil)

@@ -5,13 +5,15 @@ require_relative 'erlang'
 dataset = [
   [123456, "int"],
   [-123456, "-int"],
+  [2.7182818, "float"],
   ["hello", "str"],
   [1000000000000000000, "bigint"],
   [-1000000000000000000, "-bigint"],
   [:abc, "atom"],
   [[1,"2",3], "list"],
   [{a: 1, b: "abc"}, "map"],
-  [Erlang::Tuple[:a, 1, 2], "tuple"]
+  [Erlang::Tuple[:a, 1, 2], "tuple"],
+  [Erlang::Binary.new("bin"), "binary"]
 ]
 
 # ext_binary
@@ -20,6 +22,7 @@ dataset.each{|v, txt|
 }
 Erlang::from_binary(StringIO.new(Erlang::to_binary(true))) == :true or raise "bool"
 Erlang::from_binary(StringIO.new(Erlang::to_binary(false))) == :false or raise "bool"
+Erlang::from_binary(StringIO.new(Erlang::to_binary(nil))) == [] or raise "nil"
 
 # connect
 node = "rubynode@test"
@@ -30,13 +33,13 @@ if erl.nodes.empty?
 end
 
 p erl.nodes
+node = erl.nodes[0]
+
+# rpc_call
 if erl.rpc_call(erl.nodes[0], :io, :format, ["Hello!\n"]) != :ok
   raise " != :ok"
 end
 
-node = erl.nodes[0]
-
-# rpc_call
 dataset.each{|v, txt|
   puts txt
   erl.rpc_call(node, :erlang, :hd, [ [v] ]) == v or raise txt

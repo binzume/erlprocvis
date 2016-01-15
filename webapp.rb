@@ -48,7 +48,6 @@ class WebApp < Sinatra::Base
             if infomap[:initial_call][0] == :proc_lib
               d = erl.rpc_call(node, :proc_lib, :translate_initial_call, [proc])
               initial_call = d[0].to_s + ":" + d[1].to_s
-              p initial_call
             end
             infomap.merge({name: proc, alive: true, init_module: initial_call, registered_name: registered_name, monitors: monitors})
           else

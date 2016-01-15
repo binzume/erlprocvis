@@ -35,3 +35,9 @@ irb(main):005:0> erl.eval(erl.nodes[0], "1 + 1.")
 => 2
 ```
 
+
+# License
+
+Copyright 2016 Kousuke Kawahira
+
+Released under the MIT license

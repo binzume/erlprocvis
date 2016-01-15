@@ -154,8 +154,10 @@ module Erlang
   def to_binary(term)
     if @@encoder[term.class]
       @@encoder[term.class].call(term)
-    elsif term.is_a?(Integer)
+    elsif term.is_a?(Integer) && term<2**31 && term>=-2**31
       @@encoder[Integer].call(term)
+    elsif term.is_a?(Integer)
+      @@encoder[Bignum].call(term)
     elsif term == true
       to_binary(:true)
     elsif term == false

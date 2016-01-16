@@ -44,12 +44,12 @@ class WebApp < Sinatra::Base
             infomap = assoc_to_hash(info)
             monitors = infomap[:monitors].map{|m| m[1]}
             registered_name = infomap[:registered_name].empty? ? nil : infomap[:registered_name];
-            initial_call = infomap[:initial_call][0].to_s + ":" + infomap[:initial_call][1].to_s
+            initial_call = infomap[:initial_call][0].to_s + ":" + infomap[:initial_call][1].to_s + "/" + infomap[:initial_call][2].to_s
             if infomap[:initial_call][0] == :proc_lib
               d = erl.rpc_call(node, :proc_lib, :translate_initial_call, [proc])
               initial_call = d[0].to_s + ":" + d[1].to_s
             end
-            infomap.merge({name: proc, alive: true, init_module: initial_call, registered_name: registered_name, monitors: monitors})
+            infomap.merge({id: proc, alive: true, initial_call: initial_call, registered_name: registered_name, monitors: monitors})
           else
             {name: proc, alive: false}
           end

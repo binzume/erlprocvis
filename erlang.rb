@@ -23,7 +23,7 @@ module Erlang
   class Ref
     attr_accessor :node, :ids, :creation
     def initialize(node, creation, *ids)
-      @node = node
+      @node = node.to_sym
       @creation = creation
       @ids = ids
     end
@@ -33,7 +33,7 @@ module Erlang
     attr_accessor :node, :id, :serial, :creation
     @@idseq = 0
     def initialize(node, id, serial, creation)
-      @node = node
+      @node = node.to_sym
       @id = id
       @serial = serial
       @creation = creation
@@ -51,7 +51,7 @@ module Erlang
   class Port
     attr_accessor :node, :id, :creation
     def initialize(node, id, creation)
-      @node = node
+      @node = node.to_sym
       @id = id
       @creation = creation
     end
@@ -184,7 +184,7 @@ module Erlang
       soc = TCPSocket.open(host, port)
       write_msg(soc, 'n')
       read_msg(soc)
-      read_msg(soc).lines.map{|l|
+      (read_msg(soc) || "").lines.map{|l|
         if l=~/name ([^\s]+) at port (\d+)/
           [$1, $2.to_i]
         end
@@ -298,22 +298,26 @@ module Erlang
       end
       node = Node.new(nodename, port)
       node.connect(port, @node, @cookie)
-      Thread.start{
-        while(m = node.recv())
-          if m[0] == 'p'
-            sio = StringIO.new(m[1..-1])
-            r = []
-            while Erlang::r_int8(sio) == 131
-              r << from_binary(sio)
-            end
-            q = @msgqueue[r[0][2].id]
-            q.push(r[1]) if q
-          elsif m == ""
-            node.soc.write([0].pack("N"))  # TODO
-          end
-        end
-      }
       @nodes[node.name] = node
+      Thread.new do
+        begin
+          while(m = node.recv())
+            if m[0] == 'p'
+              sio = StringIO.new(m[1..-1])
+              r = []
+              while Erlang::r_int8(sio) == 131
+                r << from_binary(sio)
+              end
+              q = @msgqueue[r[0][2].id]
+              q.push(r[1]) if q
+            elsif m == ""
+              node.soc.write([0].pack("N"))  # TODO
+            end
+          end
+        ensure
+          @nodes.delete(node.name)
+        end
+      end
     end
 
     def down()

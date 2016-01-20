@@ -5,6 +5,8 @@
   <meta http-equiv="Content-Style-Type" content="text/css" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
   <title>ErlProcVis</title>
+  <link rel=stylesheet type="text/css" href="css/form.css" />
+  <link rel=stylesheet type="text/css" href="css/procvis.css" />
   <script src="js/utils.js"></script>
   <script src="js/lightgl.js"></script>
   <script id="vs" type="x-shader/x-vertex">
@@ -150,6 +152,10 @@ function proc_loaded(result) {
 			name = node.proc.initial_call || "";
 		}
 		circleText(ctx, name, 256, 256, 190, Math.PI * 0.3);
+		if (node.proc.trap_exit) {
+			ctx.font = "20px monospace";
+			circleText(ctx, "trap_exit", 256, 256, 260, Math.PI * 0.2);
+		}
 		
 		node.tex = GL.Texture.fromImage(canvas, {});
 	}
@@ -337,35 +343,24 @@ gl.onmousemove = function(e) {
 	}
 };
 
-gl.onmouseup = function(e) {
-	if (!drag && button == 0) {
-		var tracer = new GL.Raytracer();
-		var ray = tracer.getRayForPixel(e.x, e.y);
-	
-		var min = 0;
-		var target = null;
-		for (var i=0; i<nodes.length; i++) {
-			var node = nodes[i];
-			result = GL.Raytracer.hitTestSphere(tracer.eye, ray, new GL.Vector(node.x, node.y, node.z) , 1.0);
-			if (result && result.t > 0) {
-				if (target == null || min > result.t ) {
-					target = node;
-					min = result.t;
-				}
+function node_by_pos(x, y) {
+	var tracer = new GL.Raytracer();
+	var ray = tracer.getRayForPixel(x, y);
+
+	var min = 0;
+	var target = null;
+	for (var i=0; i<nodes.length; i++) {
+		var node = nodes[i];
+		result = GL.Raytracer.hitTestSphere(tracer.eye, ray, new GL.Vector(node.x, node.y, node.z) , 1.0);
+		if (result && result.t > 0) {
+			if (target == null || min > result.t ) {
+				target = node;
+				min = result.t;
 			}
 		}
-		if (target) {
-			console.log("click: " + target.name);
-			target_center.x = target.x;
-			target_center.y = target.y;
-			target_center.z = target.z;
-			cameraPos.x = 0;
-			cameraPos.y = 0;
-			cameraPos.z = Math.max(-20, cameraPos.z);
-		}
 	}
-};
-
+	return target;
+}
 
 gl.fullscreen();
 gl.animate();
@@ -388,6 +383,45 @@ window.addEventListener('load',(function(e){
 		button = e.targetTouches.length;
 		dragX = e.targetTouches[0].clientX;
 		dragY = e.targetTouches[0].clientY;
+	});
+
+	gl.canvas.addEventListener('click', function(e){
+		if (drag) return;
+		e.preventDefault();
+		var target = node_by_pos(e.x, e.y);
+		if (target) {
+			console.log("click: " + target.name);
+			target_center.x = target.x;
+			target_center.y = target.y;
+			target_center.z = target.z;
+			cameraPos.x = 0;
+			cameraPos.y = 0;
+			cameraPos.z = Math.max(-20, cameraPos.z);
+		}
+	});
+
+	gl.canvas.addEventListener('dblclick', function(e){
+		e.preventDefault();
+		var target = node_by_pos(e.x, e.y);
+		if (target) {
+			console.log("dblclick: " + target.name);
+			$('#proc_info_id').innerText=target.name;
+			element_clear($('#proc_info_list'));
+			element_append($('#proc_info_list'), [
+				element('li', "initial_call:" + target.proc.initial_call),
+				element('li', "trap_exit:" + target.proc.trap_exit),
+				element('li', "heap size:" + target.proc.total_heap_size),
+				element('li', "message queue:" + target.proc.message_queue_len)
+			]);
+			new Dialog($('#proc_info'), $('#proc_info_close')).
+				onClick('proc_info_kill', function(){
+					if (confirm('KILL ' + target.name + '?')) {
+						var m = target.proc.id.match(/<([^:]*):(.*)>/);
+						console.log(m);
+						requestJson("DELETE", "nodes/" + m[1] + "/procs/" + m[2], null).send();
+					}
+				}).show();
+		}
 	});
 
 	document.body.addEventListener('touchend', function(e){
@@ -417,5 +451,15 @@ window.addEventListener('load',(function(e){
 
 }),false);
 </script>
+
+
+<form id="proc_info" class="dialog">
+ <h3 id="proc_info_id">proc_id</h3>
+ <ul id="proc_info_list">
+ </ul>
+ <button id="proc_info_kill" class="careful">Kill</button>
+ <button id="proc_info_close">Close</button>
+</form>
+
 
 </body></html>

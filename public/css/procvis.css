@@ -1,0 +1,14 @@
+
+.dialog {
+	position:fixed;
+    z-index: 10;
+	top: 40pt;
+	display: none;
+	border-radius: 3px;
+	border: 2px solid #bbbbbb;
+	background-color: #ffffff;
+	width: 250pt;
+	margin: 0 auto;
+	padding: 6pt 20pt;
+}
+

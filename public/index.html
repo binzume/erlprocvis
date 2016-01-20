@@ -82,9 +82,11 @@ function proc_loaded(result) {
 		console.log("proc_loaded status:" + result.status);
 		return;
 	}
+	var oldnodes = nodes;
 	nodes = [];
 	edges = [];
-	procs = result.procs
+	procidx = {};
+	procs = result.procs;
 
 	for (var i=0; i<procs.length; i++) {
 		var proc = procs[i];
@@ -159,10 +161,20 @@ function proc_loaded(result) {
 		
 		node.tex = GL.Texture.fromImage(canvas, {});
 	}
-	
 	for (var i=0; i<edges.length; i++) {
 		var edge = edges[i];
 		nodes[edge.from].edges.push(edge);
+	}
+
+	// restore old position.
+	for (var i=0; i<oldnodes.length; i++) {
+		var node = oldnodes[i];
+		if (procidx[node.proc.id] != null) {
+			nodes[procidx[node.proc.id]].x = node.x;
+			nodes[procidx[node.proc.id]].y = node.y;
+			nodes[procidx[node.proc.id]].z = node.z;
+		}
+		
 	}
 
 	adjust_pos(20);
@@ -417,8 +429,7 @@ window.addEventListener('load',(function(e){
 				onClick('proc_info_kill', function(){
 					if (confirm('KILL ' + target.name + '?')) {
 						var m = target.proc.id.match(/<([^:]*):(.*)>/);
-						console.log(m);
-						requestJson("DELETE", "nodes/" + m[1] + "/procs/" + m[2], null).send();
+						requestJson("DELETE", "nodes/" + m[1] + "/procs/" + m[2], function(r){getJson("/procs", proc_loaded);}).send();
 					}
 				}).show();
 		}

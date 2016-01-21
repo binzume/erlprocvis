@@ -256,6 +256,7 @@ var angleY = 20;
 var cameraPos = new GL.Vector(0,0,-20);
 var center = new GL.Vector(0,0,0);
 var target_center = new GL.Vector(0,0,0);
+var selected = null;
 var rot = 0;
 
 var mesh = GL.Mesh.plane({coords: true});
@@ -271,6 +272,11 @@ var tex02 = GL.Texture.fromURL('images/link_tex.png');
 gl.onupdate = function(seconds) {
 	rot += 45 * seconds;
 	adjust_pos(1);
+	if (selected) {
+		target_center.x = selected.x;
+		target_center.y = selected.y;
+		target_center.z = selected.z;
+	}
 	center = center.multiply(0.8).add(target_center.multiply(0.2));
 };
 
@@ -374,10 +380,14 @@ function node_by_pos(x, y) {
 	return target;
 }
 
+function refresh() {
+	getJson("/procs", proc_loaded);
+}
+
 gl.fullscreen();
 gl.animate();
 
-getJson("/procs", proc_loaded);
+refresh();
 
 
 window.addEventListener('load',(function(e){
@@ -403,9 +413,7 @@ window.addEventListener('load',(function(e){
 		var target = node_by_pos(e.x, e.y);
 		if (target) {
 			console.log("click: " + target.name);
-			target_center.x = target.x;
-			target_center.y = target.y;
-			target_center.z = target.z;
+			selected = target;
 			cameraPos.x = 0;
 			cameraPos.y = 0;
 			cameraPos.z = Math.max(-20, cameraPos.z);
@@ -415,7 +423,7 @@ window.addEventListener('load',(function(e){
 	gl.canvas.addEventListener('dblclick', function(e){
 		e.preventDefault();
 		var target = node_by_pos(e.x, e.y);
-		if (target) {
+		if (target && target == selected) {
 			console.log("dblclick: " + target.name);
 			$('#proc_info_id').innerText=target.name;
 			element_clear($('#proc_info_list'));
@@ -429,7 +437,7 @@ window.addEventListener('load',(function(e){
 				onClick('proc_info_kill', function(){
 					if (confirm('KILL ' + target.name + '?')) {
 						var m = target.proc.id.match(/<([^:]*):(.*)>/);
-						requestJson("DELETE", "nodes/" + m[1] + "/procs/" + m[2], function(r){getJson("/procs", proc_loaded);}).send();
+						requestJson("DELETE", "nodes/" + m[1] + "/procs/" + m[2], refresh).send();
 					}
 				}).show();
 		}

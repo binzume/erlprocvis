@@ -110,8 +110,8 @@ module Erlang
                         node = from_binary(io); (id,b,c) = io.read(9).unpack("NNc")
                         Pid.new(node, id, b, c) },
     TYPE_NEW_REF   => lambda{|io|
-                        c = r_int16(io); node = from_binary(io); c2 = r_int8(io)
-                        Ref.new(node, c, (1..c2).map{ r_int32(io)}) },
+                        l = r_int16(io); node = from_binary(io); c = r_int8(io)
+                        Ref.new(node, c, (1..l).map{ r_int32(io)}) },
     TYPE_FUN       => lambda{|io| Fun.new(io.read(r_int32(io)-4))}
   }
   @@encoder = {

@@ -24,10 +24,6 @@ class WebApp < Sinatra::Base
     redirect '/index.html'
   end
 
-  get '/hello' do
-      "Hello"
-  end
-
   helpers do
     def assoc_to_hash(assoc)
       Hash[assoc.map{|e|
@@ -89,8 +85,10 @@ class WebApp < Sinatra::Base
       if params['node'] =~/^@([\w\.\-]+)$/
         host = $1
         nodes = Erlang::Epmd.names(host).map{|name, port| "#{name}@#{host}" }
+        content_type :json
         JSON.generate({status: 'ok', nodes: nodes})
       else
+        content_type :json
         JSON.generate({status: 'ok', connected: erl.nodes.include?(params['node'])})
       end
   end

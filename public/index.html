@@ -121,6 +121,11 @@ function proc_loaded(result) {
 		}
 	}
 
+	var canvas = document.createElement("canvas");
+	canvas.width  = nodeTexSize;
+	canvas.height = nodeTexSize;
+	var ctx = canvas.getContext("2d");
+
 	// init nodes
 	for (var i=0; i<nodes.length; i++) {
 		var node = nodes[i];
@@ -135,14 +140,7 @@ function proc_loaded(result) {
 			node.color = [1.0, 1.0, 0.3, 1.0];
 		}
 
-		var canvas = document.createElement("canvas");
-		canvas.width  = nodeTexSize;
-		canvas.height = nodeTexSize;
-		node.canvas = canvas;
-	
-		var ctx = canvas.getContext("2d");
 		ctx.clearRect(0, 0, nodeTexSize, nodeTexSize);
-	
 		ctx.font = "20px monospace";
 		ctx.textAlign = "center";
 		ctx.textBaseline = "middle";

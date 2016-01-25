@@ -19,6 +19,9 @@ RubyからErlangのノードに[Distribution Protocol](http://www.erlang.org/doc
 3. rackup
 4. ブラウザで開く
 
+表示サンプル(静的ページです): http://binzume.github.io/erlprocvis/public/?procs=sample.json
+
+
 ## Usage2
 
 ``` cmd

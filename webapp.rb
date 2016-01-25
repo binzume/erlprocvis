@@ -89,7 +89,12 @@ class WebApp < Sinatra::Base
         JSON.generate({status: 'ok', nodes: nodes})
       else
         content_type :json
-        JSON.generate({status: 'ok', connected: erl.nodes.include?(params['node'])})
+        node = params['node']
+        nodeinfo = nil
+        if erl.nodes.include?(node)
+          nodeinfo = {memory: assoc_to_hash(erl.rpc_call(node, :erlang, :memory, []))}
+        end
+        JSON.generate({status: 'ok', connected: erl.nodes.include?(node), node: nodeinfo})
       end
   end
 

@@ -82,6 +82,17 @@ function bindObj(o, f) {
 	return function() {return f.apply(o, arguments)};
 }
 
+function onClick(element, func) {
+	element.addEventListener('click', func, false);
+}
+
+if (window.$ === undefined) {
+	window.$ = document.querySelector.bind(document);
+}
+
+
+
+// UI
 
 function Dialog(elem, cancel) {
 	var self = this;
@@ -146,10 +157,25 @@ Dialog.prototype.donothing = function(e) {
 	e.stopPropagation();
 }
 
-if (window.$ === undefined) {
-	window.$ = document.querySelector.bind(document);
+
+
+function Toast(elem, text) {
+	if (elem == null) {
+		elem = element('div', text);
+		elem.className = 'toast';
+		element_append(document.body, elem);
+	} else {
+		elem.innerText = text;
+	}
+	this.elem = elem;
 }
 
-function onClick(element, func) {
-	element.addEventListener('click', func, false);
+Toast.prototype.show = function(duration) {
+	if (duration == null) {
+		duration = 1000;
+	}
+	var elem = this.elem;
+	elem.style.display = "block";
+	setTimeout(function(){ elem.style.display="none"; elem.parentElement.removeChild(elem); }, duration);
 }
+

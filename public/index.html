@@ -189,8 +189,7 @@ function proc_loaded(result) {
 	adjust_pos(20);
 	check_url_fragment();
 
-	console.timeEnd('proc_loaded');
-
+	// console.timeEnd('proc_loaded');
 }
 
 function adjust_pos(n) {
@@ -266,11 +265,13 @@ var linklines = new GL.Mesh({ coords: true, lines: true });
 var angleX = 20;
 var angleY = 20;
 var autoRotate = false;
+var autoRefresh = false;
 var cameraPos = new GL.Vector(0,0,-20);
 var center = new GL.Vector(0,0,0);
 var target_center = new GL.Vector(0,0,0);
 var selected = null;
 var rot = 0;
+var autoRefreshT = 0;
 
 var mesh = GL.Mesh.plane({coords: true});
 
@@ -286,6 +287,12 @@ var tex02 = GL.Texture.fromURL('images/link_tex.png');
 gl.onupdate = function(seconds) {
 	rot += 45 * seconds;
 	adjust_pos(1);
+
+	autoRefreshT += seconds;
+	if (autoRefresh && autoRefreshT > 30) {
+		refresh();
+		autoRefreshT = 0;
+	}
 	if (autoRotate) {
 		angleY += 15 * seconds;
 	}
@@ -499,11 +506,17 @@ window.addEventListener('load',(function(e){
 	});
 
 	document.addEventListener('keydown', function(e){
-		if (e.keyCode == 82) {
+		if (e.keyCode == 'R'.charCodeAt(0)) {
 			refresh();
+			new Toast(null, "Refresh...").show(2000);
 		}
-		if (e.keyCode == 84) {
+		if (e.keyCode == 'T'.charCodeAt(0)) {
 			autoRotate = !autoRotate;;
+			new Toast(null, "Rotation: " + autoRotate).show();
+		}
+		if (e.keyCode == 'Y'.charCodeAt(0)) {
+			autoRefresh = !autoRefresh;;
+			new Toast(null, "Polling: " + autoRefresh).show();
 		}
 	});
 

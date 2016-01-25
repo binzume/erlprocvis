@@ -83,7 +83,10 @@ function proc_loaded(result) {
 		console.log("proc_loaded status:" + result.status);
 		return;
 	}
+
+	// console.time('proc_loaded');
 	var oldnodes = nodes;
+	var oldprocidx = procidx;
 	nodes = [];
 	edges = [];
 	procidx = {};
@@ -102,7 +105,7 @@ function proc_loaded(result) {
 		for (var j=0; j<proc.links.length; j++) {
 			var l = proc.links[j];
 			if (proc.id < l) {
-				console.log("link: " + proc.id + " <-> " + l);
+				// console.log("link: " + proc.id + " <-> " + l);
 				if (procidx[l]!=null && procidx[proc.id]!=null) {
 					edges.push({from: procidx[proc.id], to: procidx[l], weight: 1.0, type: "link"});
 					nodes[procidx[proc.id]].links.push(l);
@@ -114,7 +117,7 @@ function proc_loaded(result) {
 	
 		for (var j=0; j<proc.monitors.length; j++) {
 			var l = proc.monitors[j];
-			console.log("monitor: " + proc.id + " -> " + l);
+			// console.log("monitor: " + proc.id + " -> " + l);
 			if (procidx[l]!=null && procidx[proc.id]!=null) {
 				edges.push({from: procidx[proc.id], to: procidx[l], weight: 1.0, type: "monitor"});
 			}
@@ -126,58 +129,68 @@ function proc_loaded(result) {
 	canvas.height = nodeTexSize;
 	var ctx = canvas.getContext("2d");
 
+
 	// init nodes
 	for (var i=0; i<nodes.length; i++) {
 		var node = nodes[i];
 		node.edges = [];
-		node.x = Math.random() * size - size/2;
-		node.y = Math.random() * size - size/2;
-		node.z = Math.random() * size - size/2;
+
+		if (oldprocidx[node.proc.id] != null ) {
+			// restore old position.
+			var oldnode = oldnodes[oldprocidx[node.proc.id]];
+			node.x = oldnode.x;
+			node.y = oldnode.y;
+			node.z = oldnode.z;
+			node.rot = oldnode.rot;
+			if (node.proc.trap_exit == oldnode.proc.trap_exit && node.proc.registered_name == oldnode.proc.registered_name) {
+				node.tex = oldnode.tex;
+			}
+		} else {
+			node.x = Math.random() * size - size/2;
+			node.y = Math.random() * size - size/2;
+			node.z = Math.random() * size - size/2;
+			node.rot = Math.random() * 360;
+		}
+
 		node.v = [0,0,0];
-		node.rot = Math.random() * 360;
 		node.color = defaultNodeColor;
 		if (node.proc.message_queue_len > 0) {
 			node.color = [1.0, 1.0, 0.3, 1.0];
 		}
-
-		ctx.clearRect(0, 0, nodeTexSize, nodeTexSize);
-		ctx.font = "20px monospace";
-		ctx.textAlign = "center";
-		ctx.textBaseline = "middle";
-		ctx.fillStyle = "white";
-		circleText(ctx, node.proc.id, nodeTexSize/2, nodeTexSize/2, nodeTexSize*0.31, 0);
-		var name = "";
-		if (node.proc.registered_name && node.proc.registered_name.length>0) {
-			name = node.proc.registered_name;
-		} else {
-			name = node.proc.initial_call || "";
+		if (node.tex == null) {
+			ctx.clearRect(0, 0, nodeTexSize, nodeTexSize);
+			ctx.font = "20px monospace";
+			ctx.textAlign = "center";
+			ctx.textBaseline = "middle";
+			ctx.fillStyle = "white";
+			circleText(ctx, node.proc.id, nodeTexSize/2, nodeTexSize/2, nodeTexSize*0.31, 0);
+			var name = "";
+			if (node.proc.registered_name && node.proc.registered_name.length>0) {
+				name = node.proc.registered_name;
+			} else {
+				name = node.proc.initial_call || "";
+			}
+			circleText(ctx, name, nodeTexSize/2, nodeTexSize/2, nodeTexSize*0.38, Math.PI * 0.3);
+			if (node.proc.trap_exit) {
+				ctx.font = "10px monospace";
+				circleText(ctx, "trap_exit", nodeTexSize/2, nodeTexSize/2, nodeTexSize*0.51, Math.PI * 0.2);
+			}
+			node.tex = GL.Texture.fromImage(canvas, {});
 		}
-		circleText(ctx, name, nodeTexSize/2, nodeTexSize/2, nodeTexSize*0.38, Math.PI * 0.3);
-		if (node.proc.trap_exit) {
-			ctx.font = "10px monospace";
-			circleText(ctx, "trap_exit", nodeTexSize/2, nodeTexSize/2, nodeTexSize*0.51, Math.PI * 0.2);
-		}
-		
-		node.tex = GL.Texture.fromImage(canvas, {});
 	}
+
+	// console.timeEnd('proc_loaded');
+
 	for (var i=0; i<edges.length; i++) {
 		var edge = edges[i];
 		nodes[edge.from].edges.push(edge);
 	}
 
-	// restore old position.
-	for (var i=0; i<oldnodes.length; i++) {
-		var node = oldnodes[i];
-		if (procidx[node.proc.id] != null) {
-			nodes[procidx[node.proc.id]].x = node.x;
-			nodes[procidx[node.proc.id]].y = node.y;
-			nodes[procidx[node.proc.id]].z = node.z;
-		}
-		
-	}
-
 	adjust_pos(20);
 	check_url_fragment();
+
+	console.timeEnd('proc_loaded');
+
 }
 
 function adjust_pos(n) {
@@ -252,6 +265,7 @@ var linklines = new GL.Mesh({ coords: true, lines: true });
 
 var angleX = 20;
 var angleY = 20;
+var autoRotate = false;
 var cameraPos = new GL.Vector(0,0,-20);
 var center = new GL.Vector(0,0,0);
 var target_center = new GL.Vector(0,0,0);
@@ -272,6 +286,9 @@ var tex02 = GL.Texture.fromURL('images/link_tex.png');
 gl.onupdate = function(seconds) {
 	rot += 45 * seconds;
 	adjust_pos(1);
+	if (autoRotate) {
+		angleY += 15 * seconds;
+	}
 	if (selected) {
 		target_center.x = selected.x;
 		target_center.y = selected.y;
@@ -476,10 +493,18 @@ window.addEventListener('load',(function(e){
 	});
 
 	gl.canvas.addEventListener('mousewheel', function(e){
-	console.log(e.wheelDelta);
 		cameraPos.z += (e.wheelDelta || e.detail) * 0.01;
 		cameraPos.z = Math.min(cameraPos.z, -0.1);
 		e.preventDefault();
+	});
+
+	document.addEventListener('keydown', function(e){
+		if (e.keyCode == 82) {
+			refresh();
+		}
+		if (e.keyCode == 84) {
+			autoRotate = !autoRotate;;
+		}
 	});
 
 }),false);

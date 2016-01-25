@@ -416,7 +416,7 @@ function node_by_pos(x, y) {
 function refresh() {
 	var m = location.search.match(/[\?&]procs=(\w+\.json)/);
 	if (m) {
-		getJson("/" + m[1], proc_loaded);
+		getJson(m[1], proc_loaded);
 	} else {
 		getJson("/procs", proc_loaded);
 	}

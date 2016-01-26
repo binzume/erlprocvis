@@ -157,6 +157,17 @@ Dialog.prototype.donothing = function(e) {
 	e.stopPropagation();
 }
 
+function get_param(name, def) {
+	var params = window.location.search.substring(1).split('&');
+	for (var i = 0; i < params.length; i++) {
+		var kv = decodeURIComponent(params[i]).split('=');
+		if (kv[0] == name) { return kv[1]; }
+	}
+	return def;
+}
+function get_bool_param(name, def) {
+	return get_param(name, String(def)) == "true";
+}
 
 
 function Toast(elem, text) {

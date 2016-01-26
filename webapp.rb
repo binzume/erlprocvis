@@ -1,21 +1,21 @@
 require 'sinatra/base'
-require 'sinatra/reloader'
 require_relative('erlang')
 require 'json'
 
 
 class WebApp < Sinatra::Base
   configure :development do
+    require 'sinatra/reloader'
     register Sinatra::Reloader
   end
 
   configure do
     set :public_folder, 'public'
-    set :target_host, 'localhost'
+    set :target_host, ENV['TARGET_HOST'] || 'localhost'
 
     selfnode = "test01@hoge"
     settings.erl.down() if settings.respond_to?(:erl)
-    cookie = File.read(ENV['HOME']+"/.erlang.cookie")
+    cookie = ENV['ERL_COOKIE'] || (File.exists?(ENV['HOME']+"/.erlang.cookie") && File.read(ENV['HOME']+"/.erlang.cookie"))
     erl = Erlang::Erl.new(selfnode, cookie, settings.target_host, false)
     set :erl, erl
   end

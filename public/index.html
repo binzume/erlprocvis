@@ -40,6 +40,7 @@
  <body>
   <script>
 
+// nodes and edges
 var size = 20;
 var nodes = [];
 var edges = [];
@@ -259,13 +260,15 @@ function adjust_pos(n) {
 	linklines.compile();
 }
 
+
+// view
 var gl = GL.create();
 var linklines = new GL.Mesh({ coords: true, lines: true });
 
 var angleX = 20;
 var angleY = 20;
-var autoRotate = false;
-var autoRefresh = false;
+var autoRotate = get_bool_param("rotation", false);
+var autoRefresh = get_bool_param("polling", false);
 var cameraPos = new GL.Vector(0,0,-20);
 var center = new GL.Vector(0,0,0);
 var target_center = new GL.Vector(0,0,0);
@@ -366,6 +369,7 @@ gl.ondraw = function() {
 };
 
 
+// event
 var button = 0;
 var drag = false;
 var dragX = 0, dragY = 0;

@@ -19,6 +19,17 @@ RubyからErlangのノードに[Distribution Protocol](http://www.erlang.org/doc
 3. rackup
 4. ブラウザで開く
 
+操作
+
+- クリック: ノード選択
+- ダブルクリック: ノード詳細表示
+- 左ボタンドラッグ: カメラ回転
+- 中ボタンドラッグ: カメラ移動
+- 右ボタンドラッグ: カメラ距離
+- R: リロード
+- T: 自動回転on/off
+- Y: 自動リロードon/off
+
 表示サンプル(静的ページです): http://binzume.github.io/erlprocvis/public/?procs=sample.json
 
 

@@ -17,6 +17,8 @@
 	left: 0;
 	right: 0;
 	margin: 0px auto;
+	padding: 6pt 20pt;
+	width: 250pt;
 	text-align: center;
     z-index: 20;
 	display: none;
@@ -24,8 +26,11 @@
 	border: 2px solid #bbbbbb;
 	background-color: #666666;
 	color: #ffffff;
-	width: 250pt;
-	margin: 0 auto;
-	padding: 6pt 20pt;
+	animation: toast 0.3s;
 }
 
+@keyframes toast {
+	from { margin-top: -200px; }
+	40% { margin-top: -50px; }
+	to { margin-top: 0px; }
+}

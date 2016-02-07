@@ -12,6 +12,13 @@
 	padding: 6pt 20pt;
 }
 
+.dialog h2 {
+	padding: 0px;
+	margin: 0px auto;
+	border-bottom: 1px solid #888888;
+	font-size: 14pt;
+}
+
 .toast {
 	position:fixed;
 	left: 0;

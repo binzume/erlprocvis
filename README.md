@@ -15,9 +15,9 @@ RubyからErlangのノードに[Distribution Protocol](http://www.erlang.org/doc
 ## Usage
 
 1. gem install sinatra sinatra-contrib
-2. 適当なErlangアプリケーションを分散モードで起動
-3. rackup
-4. ブラウザで開く
+2. 適当なErlangアプリケーションを分散モードで起動(例: erl -sname hoge )
+3. rackup -p 2400
+4. ブラウザで開く http://localhost:2400/
 
 操作
 

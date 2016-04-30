@@ -65,7 +65,7 @@ function on_node_status_result(result) {
 function tick() {
 	if (nodes.length == 0) return;
 
-	getJson("/nodes/" + nodes[nodes_cur_idx], on_node_status_result);
+	getJson("/nodes/" + nodes[nodes_cur_idx] + "?connect=true", on_node_status_result);
 	nodes_cur_idx = (nodes_cur_idx+1) % nodes.length;
 }
 

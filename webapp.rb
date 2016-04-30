@@ -83,6 +83,9 @@ class WebApp < Sinatra::Base
         content_type :json
         node = params['node']
         nodeinfo = nil
+        if !erl.nodes.include?(node) && params['connect'] == 'true'
+          erl.connect(node)
+        end
         if erl.nodes.include?(node)
           nodeinfo = {
             name: node.to_s,

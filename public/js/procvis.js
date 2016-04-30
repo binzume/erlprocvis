@@ -50,7 +50,7 @@ function proc_loaded(result) {
 	nodes = [];
 	edges = [];
 	procidx = {};
-	procs = result.procs;
+	procs = result.processes;
 
 	for (var i=0; i<procs.length; i++) {
 		var proc = procs[i];
@@ -377,11 +377,13 @@ function node_by_pos(x, y) {
 }
 
 function refresh() {
-	var m = location.search.match(/[\?&]procs=(\w+\.json)/);
-	if (m) {
+	var m;
+	if (m  = location.search.match(/[\?&]procs=(\w+\.json)/)) {
 		getJson(m[1], proc_loaded);
+	} else if (m = location.search.match(/[\?&]node=([\w@\-\.]+)/)) {
+		getJson("/nodes/" + m[1] + "/procs", proc_loaded);
 	} else {
-		getJson("/procs", proc_loaded);
+		getJson("/nodes/_/procs", proc_loaded);
 	}
 }
 

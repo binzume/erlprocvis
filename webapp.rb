@@ -13,7 +13,7 @@ class WebApp < Sinatra::Base
     set :public_folder, 'public'
     set :target_host, ENV['TARGET_HOST'] || 'localhost'
 
-    selfnode = "test01@hoge"
+    selfnode = "rubyerltest@" + Socket.gethostname
     settings.erl.down() if settings.respond_to?(:erl)
     cookie = ENV['ERL_COOKIE'] || (File.exists?(ENV['HOME']+"/.erlang.cookie") && File.read(ENV['HOME']+"/.erlang.cookie"))
     erl = Erlang::Erl.new(selfnode, cookie, settings.target_host, false)
@@ -56,7 +56,45 @@ class WebApp < Sinatra::Base
     end
   end
 
-  get '/procs' do
+  get '/nodes' do
+      erl = settings.erl
+
+      if erl.nodes.empty?
+        # connect to nodes.
+        Erlang::Epmd.names(settings.target_host).each{|name, port| erl.connect("#{name}@#{settings.target_host}", port) }
+      end
+
+      if erl.nodes.size() > 0  && params['cluster'] == 'true'
+        node = erl.nodes[0]
+        JSON.generate({status: 'ok', nodes: [node] + erl.rpc_call(node, :erlang, :nodes, []) })
+      else
+        JSON.generate({status: 'ok', nodes: erl.nodes})
+      end
+  end
+
+  get '/nodes/:node' do
+      erl = settings.erl
+      if params['node'] =~/^@([\w\.\-]+)$/
+        host = $1
+        nodes = Erlang::Epmd.names(host).map{|name, port| "#{name}@#{host}" }
+        content_type :json
+        JSON.generate({status: 'ok', nodes: nodes})
+      else
+        content_type :json
+        node = params['node']
+        nodeinfo = nil
+        if erl.nodes.include?(node)
+          nodeinfo = {
+            name: node.to_s,
+            process_count: erl.rpc_call(node, :erlang, :system_info, [:process_count]),
+            memory: assoc_to_hash(erl.rpc_call(node, :erlang, :memory, [])),
+          }
+        end
+        JSON.generate({status: 'ok', connected: erl.nodes.include?(node), node: nodeinfo})
+      end
+  end
+
+  get '/nodes/_/procs' do
       erl = settings.erl
 
       if erl.nodes.empty?
@@ -72,30 +110,7 @@ class WebApp < Sinatra::Base
       }
 
       content_type :json
-      JSON.generate({status: 'ok', procs: proc_infos})
-  end
-
-  get '/nodes' do
-      erl = settings.erl
-      JSON.generate({status: 'ok', nodes: erl.nodes})
-  end
-
-  get '/nodes/:node' do
-      erl = settings.erl
-      if params['node'] =~/^@([\w\.\-]+)$/
-        host = $1
-        nodes = Erlang::Epmd.names(host).map{|name, port| "#{name}@#{host}" }
-        content_type :json
-        JSON.generate({status: 'ok', nodes: nodes})
-      else
-        content_type :json
-        node = params['node']
-        nodeinfo = nil
-        if erl.nodes.include?(node)
-          nodeinfo = {memory: assoc_to_hash(erl.rpc_call(node, :erlang, :memory, []))}
-        end
-        JSON.generate({status: 'ok', connected: erl.nodes.include?(node), node: nodeinfo})
-      end
+      JSON.generate({status: 'ok', processes: proc_infos})
   end
 
   get '/nodes/:node/procs' do

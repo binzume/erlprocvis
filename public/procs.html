@@ -1,0 +1,52 @@
+<html>
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta http-equiv="Content-Script-Type" content="text/javascript" />
+  <meta http-equiv="Content-Style-Type" content="text/css" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+  <title>ErlProcVis</title>
+  <link rel=stylesheet type="text/css" href="css/form.css" />
+  <link rel=stylesheet type="text/css" href="css/procvis.css" />
+  <script src="js/utils.js"></script>
+  <script src="js/lightgl.js"></script>
+  <script id="vs" type="x-shader/x-vertex">
+	varying vec2 coord;
+	varying float depth;
+	void main() {
+		coord = gl_TexCoord.xy;
+		gl_Position = gl_ModelViewProjectionMatrix * gl_Vertex;
+		depth = gl_Position.z;
+	}
+  </script>
+  <script id="fs" type="x-shader/x-fragment">
+	uniform sampler2D texture;
+	uniform vec4 color;
+	varying vec2 coord;
+	varying float depth;
+	void main() {
+		float r;
+		if (depth > 16.0) {
+			r = max(1.0 / (1.0 + (depth - 16.0) * 0.1), 0.25);
+		} else {
+			r = 1.0;
+		}
+		gl_FragColor = texture2D(texture, coord) * color * r;
+		if (gl_FragColor.a < 0.01) {
+			discard;
+		}
+	}
+  </script>
+  <script src="js/procvis.js"></script>
+ </head>
+ <body>
+
+<form id="proc_info" class="dialog">
+ <h2 id="proc_info_id">proc_id</h2>
+ <ul id="proc_info_list">
+ </ul>
+ <button id="proc_info_kill" class="careful">Kill</button>
+ <button id="proc_info_close">Close</button>
+</form>
+
+ </body>
+</html>

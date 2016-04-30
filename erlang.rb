@@ -1,5 +1,6 @@
 require 'socket'
 require 'thread'
+require 'timeout'
 require 'stringio'
 require 'digest/md5'
 
@@ -330,7 +331,10 @@ module Erlang
       msg = Tuple[:'$gen_call', Tuple[from,ref], Tuple[:call, mod, fun, args, :user]]
       @msgqueue[from.id] = Queue.new
       @nodes[node].send(Tuple[CTRL_REG_SEND, from, :'', :rex], msg)
-      res = @msgqueue[from.id].pop # wait for response
+      res = nil
+      timeout(1.0) do
+        res = @msgqueue[from.id].pop # wait for response
+      end
       @msgqueue.delete(from.id)
       res[1]
     end

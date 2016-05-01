@@ -13,16 +13,19 @@ dataset = [
   [[1,"2",3], "list"],
   [{a: 1, b: "abc"}, "map"],
   [Erlang::Tuple[:a, 1, 2], "tuple"],
-  [Erlang::Binary.new("bin"), "binary"]
+  [Erlang::Binary.new("bin"), "binary"],
+  [[Erlang::Pid.create(:node), Erlang::Pid.new(:node,999,1,2)], "pid"],
 ]
 
 # ext_binary
+puts 'ext_binary...'
 dataset.each{|v, txt|
   Erlang::from_binary(StringIO.new(Erlang::to_binary(v))) == v or raise txt
 }
 Erlang::from_binary(StringIO.new(Erlang::to_binary(true))) == :true or raise "bool"
 Erlang::from_binary(StringIO.new(Erlang::to_binary(false))) == :false or raise "bool"
 Erlang::from_binary(StringIO.new(Erlang::to_binary(nil))) == [] or raise "nil"
+puts 'ext_binary ok'
 
 # connect
 node = "rubynode@test"

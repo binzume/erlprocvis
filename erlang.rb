@@ -41,7 +41,10 @@ module Erlang
     end
     def self.create(selfnode)
       @@idseq += 1
-      Pid.new(selfnode, @@idseq, 0, 0)
+      Pid.new(selfnode, @@idseq & 0x7fff, (@@idseq >> 15) & 7, 0)
+    end
+    def ==(o)
+      node == o.node && id == o.id && serial == o.serial && creation == o.creation
     end
     def to_s
       "<#{@node}:#{@creation}.#{@id}.#{@serial}>"

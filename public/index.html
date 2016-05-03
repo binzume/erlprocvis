@@ -12,7 +12,7 @@
  </head>
  <body>
 
-Nodes
+<h2>Status</h2>
 
 <table>
  <tr>
@@ -23,9 +23,44 @@ Nodes
   <th>mem_bin</th>
   <th>mem_atom</th>
   <th>mem_ets</th>
+  <th>--</th>
  </tr>
- <tbody id="nodes"></tbody>
+ <tbody id="nodes">
+ </tbody>
 </table>
+
+<h2>RPC</h2>
+<form id="rpc_form">
+  Target Nodes:
+  <ul id="rpc_nodes"><li>loading node list...</li></ul>
+  Code:<br />
+  <textarea name="rpc_code">io:format("Hello!~n").</textarea><br />
+  <button id="rpc_button" class="submit" type="submit">Execute</button>
+</form>
+
+<div id="upload_beam">
+  Upload .beam files:
+  <div style="width:400pt;height:100pt;border: solid 1px gray; overflow:scroll">
+    Drag & Drop "*.beam" files here.
+    <ul id="files" style=""></ul>
+  </div>
+  <label><input id="use_soft_purge" type="checkbox" checked="checked" />soft_purge</label><br />
+  <button id="attach_button" >Add .beam</button>
+  <button id="clear_beams_button" >Clear</button>
+  <button id="upload_button" class="submit" type="submit">Upload</button>
+</div>
+
+<pre>
+Uploaded:
+lists:flatmap(fun({M, "/dummy/"++_})-> [M]; (_)-> [] end, code:all_loaded()).
+Reset:
+lists:flatmap(fun({M, "/dummy/"++_})-> code:soft_purge(M),[{M,code:load_file(M)}]; (_)-> [] end, code:all_loaded()).
+</pre>
+
+<h2>Result</h2>
+
+<ul id="rpc_result" style="">nothing</ul>
+
 
  </body>
 </html>

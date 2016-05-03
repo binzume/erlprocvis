@@ -119,8 +119,11 @@ class WebApp < Sinatra::Base
   get '/nodes/:node/procs' do
       erl = settings.erl
       node = params['node']
-      unless erl.nodes.include?(params['node'])
-        erl.connect(params['node'])
+      unless erl.nodes.include?(node)
+        erl.connect(node)
+      end
+      unless erl.nodes.include?(node)
+        raise('cannot_connect')
       end
 
       procs = erl.rpc_call(node, :erlang, :processes, [])
@@ -158,12 +161,47 @@ class WebApp < Sinatra::Base
       erl = settings.erl
       node = params['node']
       code = params['code']
-      pida = params['pid'].split('.')
-      pid = Erlang::Pid.new(node, pida[1].to_i, pida[2].to_i, pida[0].to_i)
+      unless erl.nodes.include?(node)
+        erl.connect(node)
+      end
+      unless erl.nodes.include?(node)
+        raise('cannot_connect')
+      end
 
       rr = erl.eval(node, code)
 
       content_type :json
-      JSON.generate({status: 'ok', result: rr})
+      JSON.generate({status: 'ok', node: node, result: rr})
+  end
+
+  post '/nodes/:node/code' do
+      erl = settings.erl
+      node = params['node']
+      if params['beam'][:filename] =~ /(\w+)\.beam$/
+        modname = $1.to_sym
+      else
+        raise("not beam")
+      end
+      beam = params['beam'][:tempfile].read
+      p params['beam']
+
+      unless erl.nodes.include?(node)
+        erl.connect(node)
+      end
+      unless erl.nodes.include?(node)
+        raise('cannot_connect')
+      end
+
+      if erl.rpc_call(node, :code, :soft_purge, [modname]) != :true
+        if params['FORCE_PURGE'] == 'true'
+          erl.rpc_call(node, :code, :purge, [modname])
+        else
+          raise('purge error')
+        end
+      end
+      rr = erl.rpc_call(node, :code, :load_binary, [modname, "/dummy/#{modname}.beam", Erlang::Binary.new(beam)])
+
+      content_type :json
+      JSON.generate({status: 'ok', node: node, result: rr})
   end
 end

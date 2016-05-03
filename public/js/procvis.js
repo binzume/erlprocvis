@@ -146,7 +146,7 @@ function proc_loaded(result) {
 		nodes[edge.from].edges.push(edge);
 	}
 
-	adjust_pos(20);
+	adjust_pos(10);
 	check_url_fragment();
 
 	// console.timeEnd('proc_loaded');
@@ -154,47 +154,49 @@ function proc_loaded(result) {
 
 function adjust_pos(n) {
 	// position
+	var len = 1.0;
+	var maxv = 1;
 	for (var k=0; k<n; k++) {
 		for (var i=0; i<nodes.length; i++) {
 			var node = nodes[i];
 			var f = [0.0,0.0,0.0];
 			
 			var dd = node.x*node.x + node.y*node.y + node.z*node.z;
-			if (dd > 2.0) {
-				f[0] += -node.x * 0.1 / dd;
-				f[1] += -node.y * 0.1 / dd;
-				f[2] += -node.z * 0.1 / dd;
-			}
+			if (dd < 2.0) dd = 2.0
+			f[0] += -node.x * 0.1 / dd;
+			f[1] += -node.y * 0.1 / dd;
+			f[2] += -node.z * 0.1 / dd;
 	
 			for (var j=0; j<nodes.length; j++) {
 				if (j == i) continue;
 				var node2 = nodes[j];
-				var d = [node.x - node2.x, node.y - node2.y, node.z - node2.z];
-				var dd = d[0]*d[0] + d[1]*d[1] + d[2]*d[2] + 0.01;
-				var dn = Math.sqrt(dd);
+				var dx = node.x - node2.x, dy = node.y - node2.y, dz = node.z - node2.z;
+				var dd = dx*dx + dy*dy + dz*dz + 0.01;
 				var st = node.weight * node2.weight / dd * 0.2;
-				f[0] += d[0] / dn * st;
-				f[1] += d[1] / dn * st;
-				f[2] += d[2] / dn * st;
+				var ff = st / Math.sqrt(dd);
+				f[0] += dx * ff;
+				f[1] += dy * ff;
+				f[2] += dz * ff;
 			}
 			for (var j=0; j<node.links.length; j++) {
 				var idx = procidx[node.links[j]];
 				if (idx == null || idx == i) continue;
 				var node2 = nodes[idx];
-				var d = [node.x - node2.x, node.y - node2.y, node.z - node2.z];
-				var dn = Math.sqrt(d[0]*d[0] + d[1]*d[1] + d[2]*d[2]);
-				var l = 1.0;
-				var sk = 0.2 / Math.sqrt(node.links.length + node2.links.length);
-				f[0] -= d[0] / dn * (dn-l) * sk;
-				f[1] -= d[1] / dn * (dn-l) * sk;
-				f[2] -= d[2] / dn * (dn-l) * sk;
+				var dx = node.x - node2.x, dy = node.y - node2.y, dz = node.z - node2.z;
+				var dd = dx*dx + dy*dy + dz*dz + 0.01;
+				var dn = Math.sqrt(dd);
+				var sk = 0.5 / (node2.links.length + node.links.length - 1);
+				var ff = (dn-len) * sk / dn;
+				f[0] -= dx * ff;
+				f[1] -= dy * ff;
+				f[2] -= dz * ff;
 			}
-			node.v[0] *= 0.6;
-			node.v[1] *= 0.6;
-			node.v[2] *= 0.6;
-			node.v[0] = f[0];
-			node.v[1] = f[1];
-			node.v[2] = f[2];
+			node.v[0] = node.v[0] * 0.7 + f[0];
+			node.v[1] = node.v[1] * 0.7 + f[1];
+			node.v[2] = node.v[2] * 0.7 + f[2];
+			if (Math.abs(node.v[0]) > maxv) node.v[0] *= maxv / Math.abs(node.v[0]);
+			if (Math.abs(node.v[1]) > maxv) node.v[1] *= maxv / Math.abs(node.v[1]);
+			if (Math.abs(node.v[2]) > maxv) node.v[2] *= maxv / Math.abs(node.v[2]);
 		}
 		for (var i=0; i<nodes.length; i++) {
 			var node = nodes[i];
@@ -203,26 +205,11 @@ function adjust_pos(n) {
 			node.z += node.v[2];
 		}
 	}
-
-	linklines.vertices = [];
-	linklines.coords = [];
-	linklines.lines = [];
-	for (var i=0; i<edges.length; i++) {
-		var edge = edges[i];
-		var from = nodes[edge.from];
-		var to = nodes[edge.to];
-		var d = edge.type == "link" ? 0 : 0.5;
-		linklines.vertices.push([from.x, from.y, from.z], [to.x, to.y, to.z]);
-		linklines.coords.push([0,d], [1,d]);
-		linklines.lines.push([i*2, i*2+1]);
-	}
-	linklines.compile();
 }
 
 
 // view
-var gl = GL.create();
-var linklines = new GL.Mesh({ coords: true, lines: true });
+var gl;
 
 var angleX = 20;
 var angleY = 20;
@@ -235,97 +222,140 @@ var selected = null;
 var rot = 0;
 var autoRefreshT = 0;
 
-var mesh = GL.Mesh.plane({coords: true});
 
-var vs = document.getElementById("vs").textContent;
-var fs = document.getElementById("fs").textContent;
-var shader = new GL.Shader(vs, fs);
+function init_gl() {
+	gl = GL.create();
+	var vs = document.getElementById("vs").textContent;
+	var fs = document.getElementById("fs").textContent;
+	var shader = new GL.Shader(vs, fs);
+	var tex01 = GL.Texture.fromURL('images/node_circle.png');
+	var tex03 = GL.Texture.fromURL('images/node_selected.png');
+	var tex02 = GL.Texture.fromURL('images/link_tex.png');
+	var linklines = new GL.Mesh({ coords: true, lines: true });
+	var mesh = GL.Mesh.plane({coords: true});
 
-var tex01 = GL.Texture.fromURL('images/node_circle.png');
-var tex03 = GL.Texture.fromURL('images/node_selected.png');
-var tex02 = GL.Texture.fromURL('images/link_tex.png');
-
-
-gl.onupdate = function(seconds) {
-	rot += 45 * seconds;
-	adjust_pos(1);
-
-	autoRefreshT += seconds;
-	if (autoRefresh && autoRefreshT > 30) {
-		refresh();
-		autoRefreshT = 0;
-	}
-	if (autoRotate) {
-		angleY += 15 * seconds;
-	}
-	if (selected) {
-		target_center.x = selected.x;
-		target_center.y = selected.y;
-		target_center.z = selected.z;
-	}
-	center = center.multiply(0.8).add(target_center.multiply(0.2));
-};
-
-gl.ondraw = function() {
-	gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-	gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE);
-	gl.enable( gl.BLEND );
-	gl.enable( gl.DEPTH_TEST );
-	gl.loadIdentity();
-	gl.translate(cameraPos.x, cameraPos.y, cameraPos.z);
-	gl.rotate(30, 1, 0, 0);
-	gl.rotate(angleX, 1, 0, 0);
-	gl.rotate(angleY, 0, 1, 0);
-	gl.translate(-center.x, -center.y, -center.z);
-
-	for (var i=0; i<nodes.length; i++) {
-		var node = nodes[i];
-		gl.pushMatrix();
-
-		gl.translate(node.x, node.y, node.z);
-
-		// billboard
-		gl.rotate(-angleY, 0, 1, 0);
-		gl.rotate(-angleX, 1, 0, 0);
-
-		tex01.bind(0);
-		gl.rotate(rot  + node.rot, 0, 0, 1);
-
-		if (node == selected) {
-			tex03.bind(1);
-			shader.uniforms({
-				texture: 1,
-				color: [0,1,0,1]
-			}).draw(mesh);
+	gl.onupdate = function(seconds) {
+		rot += 45 * seconds;
+	
+		adjust_pos(1);
+	
+		linklines.vertices = [];
+		linklines.coords = [];
+		linklines.lines = [];
+		for (var i=0; i<edges.length; i++) {
+			var edge = edges[i];
+			var from = nodes[edge.from];
+			var to = nodes[edge.to];
+			var d = edge.type == "link" ? 0 : 0.5;
+			linklines.vertices.push([from.x, from.y, from.z], [to.x, to.y, to.z]);
+			linklines.coords.push([0,d], [1,d]);
+			linklines.lines.push([i*2, i*2+1]);
 		}
+		linklines.compile();
+	
+		autoRefreshT += seconds;
+		if (autoRefresh && autoRefreshT > 30) {
+			refresh();
+			autoRefreshT = 0;
+		}
+		if (autoRotate) {
+			angleY += 15 * seconds;
+		}
+		if (selected) {
+			target_center.x = selected.x;
+			target_center.y = selected.y;
+			target_center.z = selected.z;
+		}
+		center = center.multiply(0.8).add(target_center.multiply(0.2));
+	};
+	
+	gl.ondraw = function() {
+		gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+		gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE);
+		gl.enable( gl.BLEND );
+		gl.enable( gl.DEPTH_TEST );
+		gl.loadIdentity();
+		gl.translate(cameraPos.x, cameraPos.y, cameraPos.z);
+		gl.rotate(30, 1, 0, 0);
+		gl.rotate(angleX, 1, 0, 0);
+		gl.rotate(angleY, 0, 1, 0);
+		gl.translate(-center.x, -center.y, -center.z);
+	
+		for (var i=0; i<nodes.length; i++) {
+			if (i > 500) break;
+			var node = nodes[i];
+			gl.pushMatrix();
+	
+			gl.translate(node.x, node.y, node.z);
+	
+			// billboard
+			gl.rotate(-angleY, 0, 1, 0);
+			gl.rotate(-angleX, 1, 0, 0);
+	
+			tex01.bind(0);
+			gl.rotate(rot  + node.rot, 0, 0, 1);
+	
+			if (node == selected) {
+				tex03.bind(1);
+				shader.uniforms({
+					texture: 1,
+					color: [0,1,0,1]
+				}).draw(mesh);
+			}
+	
+			shader.uniforms({
+				texture: 0,
+				color: node.color
+			}).draw(mesh);
+	
+			gl.pushMatrix();
+			gl.scale(0.94, 0.94, 0.94);
+			gl.rotate(-rot*1.6 + node.rot * 3, 0, 0, 1);
+			shader.draw(mesh);
+			gl.popMatrix();
+	
+			node.tex.bind(0);
+			shader.draw(mesh);
+	
+			gl.popMatrix();
+		}
+		
+		if (linklines.lines.length > 0) {
+			tex02.bind(0);
+			gl.lineWidth(2);
+			shader.uniforms({
+				texture: 0,
+				color: [1.0, 1.0, 1.0, 1.0]
+			}).draw(linklines,gl.LINES);
+		}
+	
+	};
 
-		shader.uniforms({
-			texture: 0,
-			color: node.color
-		}).draw(mesh);
-
-		gl.pushMatrix();
-		gl.scale(0.94, 0.94, 0.94);
-		gl.rotate(-rot*1.6 + node.rot * 3, 0, 0, 1);
-		shader.draw(mesh);
-		gl.popMatrix();
-
-		node.tex.bind(0);
-		shader.draw(mesh);
-
-		gl.popMatrix();
+	gl.onmousedown = function(e) {
+		e.preventDefault();
+		button = e.button;
+		drag = false;
 	}
 	
-	if (linklines.lines.length > 0) {
-		tex02.bind(0);
-		gl.lineWidth(2);
-		shader.uniforms({
-			texture: 0,
-			color: [1.0, 1.0, 1.0, 1.0]
-		}).draw(linklines,gl.LINES);
-	}
-
-};
+	gl.onmousemove = function(e) {
+		if (e.dragging) {
+			if (e.deltaX*e.deltaX + e.deltaY * e.deltaY > 2) {
+				drag = true;
+			}
+			if (button == 2) {
+				cameraPos.z += e.deltaY * 0.1;
+				cameraPos.z = Math.min(cameraPos.z, -0.1);
+				cameraPos.x += e.deltaX * 0.1;
+			} else if (button == 1) {
+				cameraPos.x += e.deltaX * 0.1;
+				cameraPos.y -= e.deltaY * 0.1;
+			} else {
+				angleY += e.deltaX * 0.5;
+				angleX = Math.max(-90, Math.min(90, angleX + e.deltaY * 0.5));
+			}
+		}
+	};
+}
 
 
 // event
@@ -333,29 +363,6 @@ var button = 0;
 var drag = false;
 var dragX = 0, dragY = 0;
 
-gl.onmousedown = function(e) {
-	e.preventDefault();
-	button = e.button;
-	drag = false;
-}
-
-gl.onmousemove = function(e) {
-	if (e.dragging) {
-		if (e.deltaX*e.deltaX + e.deltaY * e.deltaY > 2) {
-			drag = true;
-		}
-		if (button == 2) {
-			cameraPos.z += e.deltaY * 0.1;
-			cameraPos.z = Math.min(cameraPos.z, -0.1);
-		} else if (button == 1) {
-			cameraPos.x += e.deltaX * 0.1;
-			cameraPos.y -= e.deltaY * 0.1;
-		} else {
-			angleY += e.deltaX * 0.5;
-			angleX = Math.max(-90, Math.min(90, angleX + e.deltaY * 0.5));
-		}
-	}
-};
 
 function node_by_pos(x, y) {
 	var tracer = new GL.Raytracer();
@@ -391,6 +398,7 @@ function refresh() {
 
 
 window.addEventListener('load',(function(e){
+	init_gl();
 	gl.fullscreen();
 	gl.animate();
 	refresh();

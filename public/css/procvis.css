@@ -41,3 +41,17 @@
 	40% { margin-top: -50px; }
 	to { margin-top: 0px; }
 }
+
+.node_name {
+	font-weight:bold;
+}
+
+/* table */
+table {
+}
+th {
+	background-color: #dddddd;
+}
+td {
+	background-color: #ccddff;
+}

@@ -102,6 +102,7 @@ function proc_loaded(result) {
 			node.y = oldnode.y;
 			node.z = oldnode.z;
 			node.rot = oldnode.rot;
+			node.tex = null;
 			if (node.proc.trap_exit == oldnode.proc.trap_exit && node.proc.registered_name == oldnode.proc.registered_name) {
 				node.tex = oldnode.tex;
 			}
@@ -178,6 +179,7 @@ function adjust_pos(n) {
 				f[1] += dy * ff;
 				f[2] += dz * ff;
 			}
+			var sk = 0.3;
 			for (var j=0; j<node.links.length; j++) {
 				var idx = procidx[node.links[j]];
 				if (idx == null || idx == i) continue;
@@ -185,18 +187,23 @@ function adjust_pos(n) {
 				var dx = node.x - node2.x, dy = node.y - node2.y, dz = node.z - node2.z;
 				var dd = dx*dx + dy*dy + dz*dz + 0.01;
 				var dn = Math.sqrt(dd);
-				var sk = 0.5 / (node2.links.length + node.links.length - 1);
-				var ff = (dn-len) * sk / dn;
+
+				var ll = len * Math.sqrt(node2.links.length + node.links.length - 1);
+				var ff = (dn-ll) * sk / dn;
 				f[0] -= dx * ff;
 				f[1] -= dy * ff;
 				f[2] -= dz * ff;
 			}
+			if (node.links.length > 1) {
+				// node weight = node.links.length
+				var r = 1.0 / (node.links.length-1);
+				f[0] *= r;
+				f[1] *= r;
+				f[2] *= r;
+			}
 			node.v[0] = node.v[0] * 0.7 + f[0];
 			node.v[1] = node.v[1] * 0.7 + f[1];
 			node.v[2] = node.v[2] * 0.7 + f[2];
-			if (Math.abs(node.v[0]) > maxv) node.v[0] *= maxv / Math.abs(node.v[0]);
-			if (Math.abs(node.v[1]) > maxv) node.v[1] *= maxv / Math.abs(node.v[1]);
-			if (Math.abs(node.v[2]) > maxv) node.v[2] *= maxv / Math.abs(node.v[2]);
 		}
 		for (var i=0; i<nodes.length; i++) {
 			var node = nodes[i];
@@ -282,7 +289,6 @@ function init_gl() {
 		gl.translate(-center.x, -center.y, -center.z);
 	
 		for (var i=0; i<nodes.length; i++) {
-			if (i > 500) break;
 			var node = nodes[i];
 			gl.pushMatrix();
 	

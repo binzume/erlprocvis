@@ -18,32 +18,25 @@ function on_nodes_result(result) {
 		console.log("nodes status:" + result.status);
 		return;
 	}
-
 	nodes = result.nodes;
 	nodes_cur_idx = 0;
 
 	element_clear($("#nodes"));
 	for (var i=0; i<nodes.length; i++) {
+		var nodename = element('label', [element('input',[], {type: 'checkbox', name: 'rpc_node_' + nodes[i], checked: true}), nodes[i]]);
 		var row = element('tr', [
-				element('td', nodes[i]),
+				element('td', nodename, {className:'node_name'}),
 				element('td', '-'),
 				element('td', '-'),
 				element('td', '-'),
 				element('td', '-'),
 				element('td', '-'),
 				element('td', '-'),
+				element('td', '-', {id: 'status_' + nodename}),
 				element('td', element('a', 'View procs', {href: "procs.html?node=" + nodes[i]}))
 			]);
 		row.id = 'node_' + nodes[i];
 		element_append($("#nodes"),row);
-	}
-
-	element_clear($("#rpc_nodes"));
-	for (var i=0; i<nodes.length; i++) {
-		var row = element('li', [
-				element('label', [element('input',[], {type: 'checkbox', name: 'rpc_node_' + nodes[i], checked: true}), nodes[i]])
-			]);
-		element_append($("#rpc_nodes"),row);
 	}
 }
 
@@ -51,25 +44,31 @@ function number_format(n) {
 	return String(n).replace(/\d(?=(\d{3})+$)/g, '$&,');
 }
 
-function on_node_status_result(result) {
+function on_node_status_result(nodename, result) {
 	if (result == null || result.status != 'ok') {
 		console.log("nodes status:" + result.status);
 		return;
 	}
 	var node = result.node;
-	var e = document.getElementById('node_' + node.name);
+	var e = document.getElementById('node_' + nodename);
 	if (e) {
-		element_clear(e);
-		element_append(e, [
-			element('td', node.name, {className:'node_name'}),
-			element('td', number_format(node.process_count)),
-			element('td', number_format(node.memory.total)),
-			element('td', number_format(node.memory.processes)),
-			element('td', number_format(node.memory.binary)),
-			element('td', number_format(node.memory.atom)),
-			element('td', number_format(node.memory.ets)),
-			element('td', element('a', 'View procs', {href: "procs.html?node=" + node.name}))
-		]);
+		if (result.connected) {
+			var ne = e.firstChild;
+			element_clear(e);
+			element_append(e, [
+				ne,
+				element('td', number_format(node.process_count), {className:'number'}),
+				element('td', number_format(node.memory.total), {className:'number'}),
+				element('td', number_format(node.memory.processes), {className:'number'}),
+				element('td', number_format(node.memory.binary), {className:'number'}),
+				element('td', number_format(node.memory.atom), {className:'number'}),
+				element('td', number_format(node.memory.ets), {className:'number'}),
+				element('td', "ok", {id:'status_'+nodename,title:result.timestamp.substring(0,19)}),
+				element('td', element('a', 'View procs', {href: "procs.html?node=" + node.name}))
+			]);
+		} else {
+			document.getElementById('status_' + nodename).innerText = "ERR";
+		}
 	} else {
 		console.log("element not found.");
 		console.log(result.node);
@@ -77,10 +76,14 @@ function on_node_status_result(result) {
 
 }
 
+function get_node_status(node) {
+	getJson("/nodes/" + node + "?connect=true", function(r){on_node_status_result(node, r);});
+}
+
 function tick() {
 	if (nodes.length == 0) return;
 
-	getJson("/nodes/" + nodes[nodes_cur_idx] + "?connect=true", on_node_status_result);
+	get_node_status(nodes[nodes_cur_idx]);
 	nodes_cur_idx = (nodes_cur_idx+1) % nodes.length;
 }
 
@@ -101,7 +104,7 @@ function uploadBeamFiles() {
 
 function uploadBeamFile(file) {
 	if (file == null) return;
-	var form = document.forms['rpc_form'];
+	var form = document.forms['node_select_form'];
 	var formData = new FormData();
 	formData.append('beam', file, file.name);
 	formData.append("FORCE_PURGE",  $('#use_soft_purge').checked ? 'false':'true');
@@ -133,9 +136,9 @@ window.addEventListener('load',(function(e){
 		var code = form.rpc_code.value;
 		var formData = new FormData();
 		formData.append("code", code);
-		formData.append("result_response", "true");
+		formData.append("result_as_string", "true");
 		for (var i=0; i < nodes.length; i++) {
-			if (!form["rpc_node_"+nodes[i]].checked) continue;
+			if (!document.forms['node_select_form']["rpc_node_"+nodes[i]].checked) continue;
 			var xhr = requestJson('POST', "/nodes/" + nodes[i] + "/exec", function(result) {
 				if (result && result.status=='ok') {
 					element_append($('#rpc_result'), element('li', result.node+" : "+result.result, {style: "color:blue"}));
@@ -144,7 +147,22 @@ window.addEventListener('load',(function(e){
 				}
 			});
 			xhr.setRequestHeader("X-CSRFToken", token);
-			xhr.send(formData); // send(JSON.stringify({"code":code, "result_response":true}));
+			xhr.send(formData); // send(JSON.stringify({"code":code, "result_as_string":true}));
+		}
+	});
+
+	onClick($('#select_all'), function(e){
+		e.preventDefault();
+		var form = document.forms['node_select_form'];
+		for (var i=0; i < nodes.length; i++) {
+			form["rpc_node_"+nodes[i]].checked = true;
+		}
+	});
+	onClick($('#select_clear'), function(e){
+		e.preventDefault();
+		var form = document.forms['node_select_form'];
+		for (var i=0; i < nodes.length; i++) {
+			form["rpc_node_"+nodes[i]].checked = false;
 		}
 	});
 
@@ -175,15 +193,15 @@ window.addEventListener('load',(function(e){
 		f.click();
 	});
 	onClick($('#upload_button'), function(e){
-		// e.preventDefault();
+		e.preventDefault();
 		element_clear($('#rpc_result'));
 		uploadBeamFiles();
 		clearBeamFiles();
 	});
 	onClick($('#clear_beams_button'), function(e){
+		e.preventDefault();
 		clearBeamFiles();
 	});
-
 
 	getJson("/nodes?cluster=true", on_nodes_result);
 	setInterval(tick, 1000);

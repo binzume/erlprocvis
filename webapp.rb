@@ -1,6 +1,7 @@
 require 'sinatra/base'
 require_relative('erlang')
 require 'json'
+require 'time'
 
 
 class WebApp < Sinatra::Base
@@ -21,7 +22,7 @@ class WebApp < Sinatra::Base
   end
 
   get "/" do
-    redirect '/index.html'
+    send_file File.join(settings.public_folder, 'index.html')
   end
 
   helpers do
@@ -84,7 +85,11 @@ class WebApp < Sinatra::Base
         node = params['node']
         nodeinfo = nil
         if !erl.nodes.include?(node) && params['connect'] == 'true'
-          erl.connect(node)
+          begin
+            erl.connect(node)
+          rescue => e
+            p e
+          end
         end
         if erl.nodes.include?(node)
           nodeinfo = {
@@ -93,7 +98,7 @@ class WebApp < Sinatra::Base
             memory: assoc_to_hash(erl.rpc_call(node, :erlang, :memory, [])),
           }
         end
-        JSON.generate({status: 'ok', connected: erl.nodes.include?(node), node: nodeinfo})
+        JSON.generate({status: 'ok', timestamp: Time.now(), connected: erl.nodes.include?(node), node: nodeinfo})
       end
   end
 
@@ -140,7 +145,7 @@ class WebApp < Sinatra::Base
       node = params['node']
       pida = params['pid'].split('.')
       pid = Erlang::Pid.new(node, pida[1].to_i, pida[2].to_i, pida[0].to_i)
-      p pid
+
       content_type :json
       JSON.generate({status: 'ok', process: proc_info(node, pid)})
   end
@@ -169,6 +174,7 @@ class WebApp < Sinatra::Base
       end
 
       rr = erl.eval(node, code)
+      rr = rr.to_s if params['result_as_string'] == 'true'
 
       content_type :json
       JSON.generate({status: 'ok', node: node, result: rr})
@@ -183,7 +189,6 @@ class WebApp < Sinatra::Base
         raise("not beam")
       end
       beam = params['beam'][:tempfile].read
-      p params['beam']
 
       unless erl.nodes.include?(node)
         erl.connect(node)
@@ -196,7 +201,7 @@ class WebApp < Sinatra::Base
         if params['FORCE_PURGE'] == 'true'
           erl.rpc_call(node, :code, :purge, [modname])
         else
-          raise('purge error')
+          raise('code purge error')
         end
       end
       rr = erl.rpc_call(node, :code, :load_binary, [modname, "/dummy/#{modname}.beam", Erlang::Binary.new(beam)])

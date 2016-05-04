@@ -10,45 +10,58 @@
   <script src="js/utils.js"></script>
   <script src="js/nodes.js"></script>
  </head>
- <body>
+ <body style="background-color:#eeeeee;">
 
-<h2>Status</h2>
+<div style="background-color:white; width:600pt;padding: 8pt;border: solid 1px #cccccc;">
+<h2>Nodes</h2>
+<form id="node_select_form">
 
 <table>
  <tr>
-  <th>node</th>
+  <th class="node_name">node</th>
   <th>procs</th>
   <th>mem_total</th>
   <th>mem_procs</th>
   <th>mem_bin</th>
   <th>mem_atom</th>
   <th>mem_ets</th>
+  <th>status</th>
   <th>--</th>
  </tr>
  <tbody id="nodes">
  </tbody>
 </table>
+<button id="select_all" class="attach_right">All</button><button id="select_clear" >None</button><br />
+</form>
+</div>
 
-<h2>RPC</h2>
-<form id="rpc_form">
-  Target Nodes:
-  <ul id="rpc_nodes"><li>loading node list...</li></ul>
-  Code:<br />
-  <textarea name="rpc_code">io:format("Hello!~n").</textarea><br />
+<div class="tab_group">
+  <div class="tab">
+     <input type="radio" id="tab1" name="group1" checked="checked" />
+     <label for="tab1" style="left: 10pt;">RPC</label>
+<form id="rpc_form" style="width:600pt;padding: 8pt;">
+  Erlang code:<br />
+  <textarea name="rpc_code" style="width:100%">io:format("Hello!~n").</textarea><br />
   <button id="rpc_button" class="submit" type="submit">Execute</button>
 </form>
-
-<div id="upload_beam">
+  </div>
+  <div class="tab">
+     <input type="radio" id="tab2" name="group1" />
+     <label for="tab2" style="left: 110pt;">Upload .beam</label>
+<form id="upload_beam" style="width:600pt;padding: 8pt;">
   Upload .beam files:
-  <div style="width:400pt;height:100pt;border: solid 1px gray; overflow:scroll">
+  <div style="width:100%;height:100pt;border: solid 1px gray; overflow:scroll">
     Drag & Drop "*.beam" files here.
     <ul id="files" style=""></ul>
   </div>
   <label><input id="use_soft_purge" type="checkbox" checked="checked" />soft_purge</label><br />
-  <button id="attach_button" >Add .beam</button>
-  <button id="clear_beams_button" >Clear</button>
+  <button id="attach_button" class="attach_right" >Add .beam</button><button id="clear_beams_button" type="reset">Clear</button>
   <button id="upload_button" class="submit" type="submit">Upload</button>
+</form>
+  </div>
 </div>
+
+
 
 <pre>
 Uploaded:
@@ -57,9 +70,10 @@ Reset:
 lists:flatmap(fun({M, "/dummy/"++_})-> code:soft_purge(M),[{M,code:load_file(M)}]; (_)-> [] end, code:all_loaded()).
 </pre>
 
+<div style="background-color:white; width:600pt;padding: 8pt;border: solid 1px #cccccc;">
 <h2>Result</h2>
-
 <ul id="rpc_result" style="">nothing</ul>
+</div>
 
 
  </body>

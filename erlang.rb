@@ -110,12 +110,10 @@ module Erlang
     TYPE_LARGE_BIG => lambda{|io| sz = r_int32(io); r_bignum(io, sz) },
     TYPE_PORT      => lambda{|io| Port.new(from_binary(io), r_int32(io), r_int8(io)) },
     TYPE_MAP       => lambda{|io| (1..r_int32(io)).reduce({}){|acc| acc[from_binary(io)] = from_binary(io); acc} },
-    TYPE_PID       => lambda{|io|
-                        node = from_binary(io); (id,b,c) = io.read(9).unpack("NNc")
-                        Pid.new(node, id, b, c) },
-    TYPE_NEW_REF   => lambda{|io|
-                        l = r_int16(io); node = from_binary(io); c = r_int8(io)
-                        Ref.new(node, c, (1..l).map{ r_int32(io)}) },
+    TYPE_PID       => lambda{|io| node = from_binary(io); (id,b,c) = io.read(9).unpack("NNc")
+                                  Pid.new(node, id, b, c) },
+    TYPE_NEW_REF   => lambda{|io| l = r_int16(io); node = from_binary(io); c = r_int8(io)
+                                  Ref.new(node, c, (1..l).map{ r_int32(io)}) },
     TYPE_FUN       => lambda{|io| Fun.new(io.read(r_int32(io)-4))}
   }
   @@encoder = {

@@ -331,7 +331,7 @@ module Erlang
       ref = Ref.new(@node, 10, 1)
       msg = Tuple[:'$gen_call', Tuple[from,ref], Tuple[:call, mod, fun, args, :user]]
       @msgqueue[from.id] = Queue.new
-      @nodes[node].send(Tuple[CTRL_REG_SEND, from, :'', :rex], msg)
+      @nodes[node.to_s].send(Tuple[CTRL_REG_SEND, from, :'', :rex], msg)
       res = nil
       timeout(1.0) do
         res = @msgqueue[from.id].pop # wait for response

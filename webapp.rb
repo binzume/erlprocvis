@@ -65,12 +65,20 @@ class WebApp < Sinatra::Base
         Erlang::Epmd.names(settings.target_host).each{|name, port| erl.connect("#{name}@#{settings.target_host}", port) }
       end
 
+      nodes = erl.nodes
       if erl.nodes.size() > 0  && params['cluster'] == 'true'
         node = erl.nodes[0]
-        JSON.generate({status: 'ok', nodes: [node] + erl.rpc_call(node, :erlang, :nodes, []) })
-      else
-        JSON.generate({status: 'ok', nodes: erl.nodes})
+        nodes = [node] + erl.rpc_call(node, :erlang, :nodes, [])
       end
+      if params['deep'] == 'true'
+        nodes = nodes.map{|node|
+            {name: node.to_s,
+              process_count: erl.rpc_call(node, :erlang, :system_info, [:process_count]),
+              memory: assoc_to_hash(erl.rpc_call(node, :erlang, :memory, [])),
+            }
+          }
+      end
+      JSON.generate({status: 'ok', nodes: nodes })
   end
 
   get '/nodes/:node' do

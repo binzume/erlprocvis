@@ -1,4 +1,4 @@
-
+"use strict";
 // nodes and edges
 var size = 20;
 var nodes = [];
@@ -42,6 +42,26 @@ function check_url_fragment() {
 	return false;
 }
 
+function on_nodes_result(result) {
+	if (result == null || result.status != 'ok') {
+		console.log("proc_loaded status:" + result.status);
+		return;
+	}
+	var ernodes = result.nodes;
+	nodes = [];
+	edges = [];
+	procidx = {};
+
+	for (var i=0; i<ernodes.length; i++) {
+		var node = ernodes[i];
+		procidx[node.name] = nodes.length;
+		nodes.push({type: "node", name: node.name, node: node.name, weight: 1.0, weight2: 1.0, links: []});
+	}
+
+	init_graph([]);
+	check_url_fragment();
+}
+
 function proc_loaded(result) {
 	if (result == null || result.status != 'ok') {
 		console.log("proc_loaded status:" + result.status);
@@ -49,12 +69,12 @@ function proc_loaded(result) {
 	}
 
 	// console.time('proc_loaded');
+	var procs = result.processes;
 	var oldnodes = nodes;
 	var oldprocidx = procidx;
 	nodes = [];
 	edges = [];
 	procidx = {};
-	var procs = result.processes;
 
 	for (var i=0; i<procs.length; i++) {
 		var proc = procs[i];
@@ -122,6 +142,18 @@ function proc_loaded(result) {
 		}
 	}
 
+	init_graph(oldprocidx);
+
+	// console.timeEnd('proc_loaded');
+
+	adjust_pos(10);
+	check_url_fragment();
+
+	// console.timeEnd('proc_loaded');
+}
+
+function init_graph(oldprocidx) {
+
 	var canvas = document.createElement("canvas");
 	canvas.width  = nodeTexSize;
 	canvas.height = nodeTexSize;
@@ -151,8 +183,10 @@ function proc_loaded(result) {
 		}
 
 		node.v = [0,0,0];
-		if (node.type=='proc') {
+		if (!node.color) {
 			node.color = defaultNodeColor;
+		}
+		if (node.type=='proc') {
 			if (node.proc.message_queue_len > 0) {
 				node.color = [1.0, 1.0, 0.3, 1.0];
 			}
@@ -180,13 +214,7 @@ function proc_loaded(result) {
 			node.tex = GL.Texture.fromImage(canvas, {});
 		}
 	}
-
-	// console.timeEnd('proc_loaded');
-
 	adjust_pos(10);
-	check_url_fragment();
-
-	// console.timeEnd('proc_loaded');
 }
 
 function adjust_pos(n) {
@@ -448,7 +476,8 @@ function refresh() {
 	} else if (m = location.search.match(/[\?&]node=([\w@\-\.]+)/)) {
 		getJson("/nodes/" + m[1] + "/procs", proc_loaded);
 	} else {
-		getJson("/nodes/_/procs", proc_loaded);
+		// getJson("/nodes/_/procs", proc_loaded);
+		getJson("/nodes?cluster=true&deep=true", on_nodes_result);
 	}
 }
 

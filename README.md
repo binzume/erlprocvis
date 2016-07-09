@@ -30,7 +30,10 @@ RubyからErlangのノードに[Distribution Protocol](http://www.erlang.org/doc
 - T: 自動回転on/off
 - Y: 自動リロードon/off
 
-表示サンプル(静的ページです): http://binzume.github.io/erlprocvis/public/?procs=sample.json
+表示サンプル(静的ページです)
+
+- Cowboy http://binzume.github.io/erlprocvis/public/procs.html?procs=sample.json
+- RabbitMQ http://binzume.github.io/erlprocvis/public/procs.html?procs=sample.json
 
 
 ## Usage2

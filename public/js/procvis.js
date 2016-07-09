@@ -1,15 +1,17 @@
 "use strict";
 // nodes and edges
+var graph = newGraph();
 var size = 20;
-var nodes = [];
-var edges = [];
-var procidx = {};
 var search = "";
 var defaultNodeColor = [0.6, 1.0, 1.0, 1.0];
 var nodeTexSize = 256;
 var displayPort = true;
 var displayRemote = true;
 var displayRemoteProc = false;
+
+function newGraph() {
+	return {nodes:[], edges:[], nodeindex:[], repulsion: true};
+}
 
 function circleText(ctx, str, cx, cy, r, st) {
 	ctx.save();
@@ -27,6 +29,7 @@ function check_url_fragment() {
 	if (location.hash && location.hash.length >= 2) {
 		var fragment = location.hash.slice(1);
 		search = fragment;
+		var nodes = graph.nodes;
 		// init nodes
 		for (var i=0; i<nodes.length; i++) {
 			var node = nodes[i];
@@ -48,17 +51,16 @@ function on_nodes_result(result) {
 		return;
 	}
 	var ernodes = result.nodes;
-	nodes = [];
-	edges = [];
-	procidx = {};
+
+	graph = newGraph();
 
 	for (var i=0; i<ernodes.length; i++) {
 		var node = ernodes[i];
-		procidx[node.name] = nodes.length;
-		nodes.push({type: "node", name: node.name, node: node.name, weight: 1.0, weight2: 1.0, links: []});
+		graph.nodeindex[node.name] = graph.nodes.length;
+		graph.nodes.push({type: "node", name: node.name, node: node.name, weight: 3.0, weight2: 1.0, links: []});
 	}
 
-	init_graph([]);
+	init_graph(null);
 	check_url_fragment();
 }
 
@@ -70,16 +72,16 @@ function proc_loaded(result) {
 
 	// console.time('proc_loaded');
 	var procs = result.processes;
-	var oldnodes = nodes;
-	var oldprocidx = procidx;
-	nodes = [];
-	edges = [];
-	procidx = {};
+	var oldgraph = graph;
+	graph = newGraph();
+	var nodes = graph.nodes;
+	var edges = graph.edges;
+	var nodeindex = graph.nodeindex;
 
 	for (var i=0; i<procs.length; i++) {
 		var proc = procs[i];
 		if (!proc.alive) continue;
-		procidx[proc.id] = nodes.length;
+		nodeindex[proc.id] = nodes.length;
 		nodes.push({type: "proc", name: proc.id, proc: proc, weight: 1.0, weight2: Math.max(1,proc.links.length), links: []});
 	}
 
@@ -102,33 +104,33 @@ function proc_loaded(result) {
 				if (l.startsWith('<#Port:')) {
 					edgeweight *= 0.5;
 					lineUV = 0.6;
-					if ( !procidx[l] && displayPort) {
-						procidx[l] = nodes.length;
-						nodes.push({type: "port", name: l, weight: 1.0, weight2: 1.0, links: [], color: [0,1.0,0,0.5]});
+					if ( !nodeindex[l] && displayPort) {
+						nodeindex[l] = nodes.length;
+						nodes.push({type: "port", name: l, weight: 0.5, weight2: 1.0, links: [], color: [0,1.0,0,0.5]});
 					}
 				} else {
 					var nodename = l.split(':')[0].slice(1);
 					if (!displayRemoteProc) l = nodename;
 					edgeweight *= 0.001;
 					lineUV = 0.5;
-					if ( !procidx[l] && displayRemote) {
-						procidx[l] = nodes.length;
+					if ( !nodeindex[l] && displayRemote) {
+						nodeindex[l] = nodes.length;
 						nodes.push({type: "node", name: l, weight: 1.0, weight2: 1.0, node: nodename, links: [], color: [1.0,1.0,0,0.5]});
 					}
 				}
 			}
 			if (addedge) {
 				// console.log("link: " + proc.id + " <-> " + l);
-				if (procidx[l]!=null && procidx[proc.id]!=null) {
+				if (nodeindex[l]!=null && nodeindex[proc.id]!=null) {
 					var ls = proc.links.length;
-					if (nodes[procidx[l]].proc) {
-						ls += nodes[procidx[l]].proc.links.length;
-					} else if (nodes[procidx[l]].type == 'node') {
+					if (nodes[nodeindex[l]].proc) {
+						ls += nodes[nodeindex[l]].proc.links.length;
+					} else if (nodes[nodeindex[l]].type == 'node') {
 						ls += procs.length / 2;
 					}
-					edges.push({from: procidx[proc.id], to: procidx[l], weight: edgeweight, len: Math.sqrt(ls - 1), type: "link", line_uv: lineUV});
-					nodes[procidx[proc.id]].links.push(l);
-					nodes[procidx[l]].links.push(proc.id);
+					edges.push({from: nodeindex[proc.id], to: nodeindex[l], weight: edgeweight, len: Math.sqrt(ls - 1), type: "link", line_uv: lineUV});
+					nodes[nodeindex[proc.id]].links.push(l);
+					nodes[nodeindex[l]].links.push(proc.id);
 				}
 			}
 		}
@@ -136,23 +138,27 @@ function proc_loaded(result) {
 		for (var j=0; j<proc.monitors.length; j++) {
 			var l = proc.monitors[j];
 			// console.log("monitor: " + proc.id + " -> " + l);
-			if (procidx[l]!=null && procidx[proc.id]!=null) {
-				edges.push({from: procidx[proc.id], to: procidx[l], weight: 0, len: 1.0, type: "monitor", line_uv:0.5});
+			if (nodeindex[l]!=null && nodeindex[proc.id]!=null) {
+				edges.push({from: nodeindex[proc.id], to: nodeindex[l], weight: 0.01, len: 1.0, type: "monitor", line_uv:0.5});
 			}
 		}
 	}
 
-	init_graph(oldprocidx);
+	init_graph(oldgraph);
 
 	// console.timeEnd('proc_loaded');
 
-	adjust_pos(10);
 	check_url_fragment();
 
 	// console.timeEnd('proc_loaded');
 }
 
-function init_graph(oldprocidx) {
+function init_graph(oldgraph) {
+	var oldnodes = oldgraph ? oldgraph.nodes : [];
+	var oldnodeindex = oldgraph ? oldgraph.nodeindex : [];
+	var nodes = graph.nodes;
+	var edges = graph.edges;
+	var nodeindex = graph.nodeindex;
 
 	var canvas = document.createElement("canvas");
 	canvas.width  = nodeTexSize;
@@ -164,9 +170,9 @@ function init_graph(oldprocidx) {
 	for (var i=0; i<nodes.length; i++) {
 		var node = nodes[i];
 
-		if (oldprocidx[node.name] != null ) {
+		if (oldnodeindex[node.name] != null ) {
 			// restore old position.
-			var oldnode = oldnodes[oldprocidx[node.name]];
+			var oldnode = oldnodes[oldnodeindex[node.name]];
 			node.x = oldnode.x;
 			node.y = oldnode.y;
 			node.z = oldnode.z;
@@ -197,7 +203,11 @@ function init_graph(oldprocidx) {
 			ctx.textAlign = "center";
 			ctx.textBaseline = "middle";
 			ctx.fillStyle = "white";
-			circleText(ctx, node.name, nodeTexSize/2, nodeTexSize/2, nodeTexSize*0.31, 0);
+			if (node.type=='node') {
+				circleText(ctx, node.name, nodeTexSize / 2, nodeTexSize / 2, nodeTexSize*0.40, 0);
+			} else {
+				circleText(ctx, node.name, nodeTexSize / 2, nodeTexSize / 2, nodeTexSize*0.31, 0);
+			}
 			if (node.type=='proc') {
 				var procName = "";
 				if (node.proc.registered_name && node.proc.registered_name.length>0) {
@@ -214,14 +224,24 @@ function init_graph(oldprocidx) {
 			node.tex = GL.Texture.fromImage(canvas, {});
 		}
 	}
-	adjust_pos(10);
+	graph.repulsion = false;
+	for (var i=0; i<50; i++) {
+		adjust_pos(graph);
+	}
+	graph.repulsion = true;
+	for (var i=0; i<20; i++) {
+		adjust_pos(graph);
+	}
 }
 
-function adjust_pos(n) {
+function adjust_pos(graph) {
+	var nodes = graph.nodes;
+	var edges = graph.edges;
+	var nodeindex = graph.nodeindex;
 	// position
 	var sk = 0.5;
-	for (var k=0; k<n; k++) {
 
+	if (graph.repulsion) {
 		for (var i=0; i<nodes.length; i++) {
 			var node = nodes[i];
 			var f = [0.0,0.0,0.0];
@@ -248,36 +268,36 @@ function adjust_pos(n) {
 			node.v[1] += f[1] / node.weight2;
 			node.v[2] += f[2] / node.weight2;
 		}
+	}
 
-		for (var i=0; i<edges.length; i++) {
-			var edge = edges[i];
-			if (edge.weight == 0) continue;
-			var node = nodes[edge.from];
-			var node2 = nodes[edge.to];
+	for (var i=0; i<edges.length; i++) {
+		var edge = edges[i];
+		if (edge.weight == 0) continue;
+		var node = nodes[edge.from];
+		var node2 = nodes[edge.to];
 
-			var dx = node.x - node2.x, dy = node.y - node2.y, dz = node.z - node2.z;
-			var dd = dx*dx + dy*dy + dz*dz;
-			var dn = Math.sqrt(dd) + 0.01;
-			var w = (dn-edge.len) * sk / dn;
-			var w1 = w / node.weight2;
-			var w2 = w / node2.weight2;
-			node.v[0] -= dx * w1;
-			node.v[1] -= dy * w1;
-			node.v[2] -= dz * w1;
-			node2.v[0] += dx * w2;
-			node2.v[1] += dy * w2;
-			node2.v[2] += dz * w2;
-		}
+		var dx = node.x - node2.x, dy = node.y - node2.y, dz = node.z - node2.z;
+		var dd = dx*dx + dy*dy + dz*dz;
+		var dn = Math.sqrt(dd) + 0.01;
+		var w = (dn-edge.len) * sk * edge.weight / dn;
+		var w1 = w / node.weight2;
+		var w2 = w / node2.weight2;
+		node.v[0] -= dx * w1;
+		node.v[1] -= dy * w1;
+		node.v[2] -= dz * w1;
+		node2.v[0] += dx * w2;
+		node2.v[1] += dy * w2;
+		node2.v[2] += dz * w2;
+	}
 
-		for (var i=0; i<nodes.length; i++) {
-			var node = nodes[i];
-			node.x += node.v[0];
-			node.y += node.v[1];
-			node.z += node.v[2];
-			node.v[0] *= 0.7;
-			node.v[1] *= 0.7;
-			node.v[2] *= 0.7;
-		}
+	for (var i=0; i<nodes.length; i++) {
+		var node = nodes[i];
+		node.x += node.v[0];
+		node.y += node.v[1];
+		node.z += node.v[2];
+		node.v[0] *= 0.7;
+		node.v[1] *= 0.7;
+		node.v[2] *= 0.7;
 	}
 }
 
@@ -305,15 +325,19 @@ function init_gl() {
 	var tex01 = GL.Texture.fromURL('images/node_circle.png');
 	var tex03 = GL.Texture.fromURL('images/node_selected.png');
 	var tex02 = GL.Texture.fromURL('images/link_tex.png');
+	var tex04a = GL.Texture.fromURL('images/node_alpha.png');
 	var edgelines = new GL.Mesh({ coords: true, lines: true });
+	var nodeSphere = new GL.Mesh.sphere({detail: 4 }).computeWireframe();
 	var mesh = GL.Mesh.plane({coords: true});
 
 	gl.onupdate = function(seconds) {
 		rot += 45 * seconds;
 
 		if (button == -1) {
-			adjust_pos(1);
+			adjust_pos(graph);
 		}
+		var nodes = graph.nodes;
+		var edges = graph.edges;
 
 		edgelines.vertices = [];
 		edgelines.coords = [];
@@ -357,57 +381,83 @@ function init_gl() {
 		gl.rotate(angleY, 0, 1, 0);
 		gl.translate(-center.x, -center.y, -center.z);
 
+		var nodes = graph.nodes;
+		var edges = graph.edges;
+		var nodeindex = graph.nodeindex;
 		for (var i=0; i<nodes.length; i++) {
 			var node = nodes[i];
 			gl.pushMatrix();
 
 			gl.translate(node.x, node.y, node.z);
 
+			if (node.type == 'node') {
+				gl.pushMatrix();
+				gl.rotate(rot  + node.rot, 0, 0, 1);
+				tex02.bind(2);
+				gl.lineWidth(2);
+				shader.uniforms({
+					texture: 2,
+					color: [1.0, 1.0, 1.0, 0.5]
+				}).draw(nodeSphere,gl.LINES);
+				gl.popMatrix();
+			}
+
 			// billboard
 			gl.rotate(-angleY, 0, 1, 0);
 			gl.rotate(-angleX, 1, 0, 0);
+			if (node.type != 'node') {
+				gl.rotate(rot  + node.rot, 0, 0, 1);
+			}
 
-			tex01.bind(0);
-			gl.rotate(rot  + node.rot, 0, 0, 1);
+			tex01.bind(1);
 
 			if (node == selected) {
-				tex03.bind(1);
+				tex03.bind(3);
 				shader.uniforms({
-					texture: 1,
+					texture: 3,
 					color: [0,1,0,1]
 				}).draw(mesh);
 			}
 
-			shader.uniforms({
-				texture: 0,
-				color: node.color
-			}).draw(mesh);
-
 			if (node.type == 'proc') {
+				shader.uniforms({
+					texture: 1,
+					color: node.color
+				}).draw(mesh);
+
 				gl.pushMatrix();
 				gl.scale(0.94, 0.94, 0.94);
 				gl.rotate(-rot*1.6 + node.rot * 3, 0, 0, 1);
 				shader.draw(mesh);
 				gl.popMatrix();
 			} else if (node.type == 'node') {
+				gl.scale(1.5,1.5,1.5);
+			} else if (node.type == 'port') {
+				gl.scale(0.8,0.8,0.8);
 				gl.pushMatrix();
-				gl.scale(2,2,2);
-				gl.rotate(-rot*1.6 + node.rot * 3, 0, 0, 1);
-				shader.draw(mesh);
+				gl.scale(0.5, 0.5, 0.5);
+				tex04a.bind(3);
+				shader.uniforms({
+					texture: 3,
+					color: node.color
+				}).draw(mesh);
 				gl.popMatrix();
 			}
 
-			node.tex.bind(0);
-			shader.draw(mesh);
+			node.tex.bind(3);
+			shader.uniforms({
+				texture: 3,
+				color: node.color
+			}).draw(mesh);
 
 			gl.popMatrix();
 		}
 
 		if (edgelines.lines.length > 0) {
-			tex02.bind(0);
+			tex02.bind(2);
 			gl.lineWidth(2);
 			shader.uniforms({
-				texture: 0,
+				texture: 2,
 				color: [1.0, 1.0, 1.0, 1.0]
 			}).draw(edgelines,gl.LINES);
 		}
@@ -456,6 +506,7 @@ function node_by_pos(x, y) {
 
 	var min = 0;
 	var target = null;
+	var nodes = graph.nodes;
 	for (var i=0; i<nodes.length; i++) {
 		var node = nodes[i];
 		result = GL.Raytracer.hitTestSphere(tracer.eye, ray, new GL.Vector(node.x, node.y, node.z) , 1.0);
@@ -471,7 +522,7 @@ function node_by_pos(x, y) {
 
 function refresh() {
 	var m;
-	if (m  = location.search.match(/[\?&]procs=(\w+\.json)/)) {
+	if (m  = location.search.match(/[\?&]procs=([\w-]+\.json)/)) {
 		getJson(m[1], proc_loaded);
 	} else if (m = location.search.match(/[\?&]node=([\w@\-\.]+)/)) {
 		getJson("/nodes/" + m[1] + "/procs", proc_loaded);

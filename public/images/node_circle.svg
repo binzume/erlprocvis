@@ -7,6 +7,7 @@
    xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
    xmlns:svg="http://www.w3.org/2000/svg"
    xmlns="http://www.w3.org/2000/svg"
+   xmlns:xlink="http://www.w3.org/1999/xlink"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    width="1024"
@@ -16,11 +17,27 @@
    version="1.1"
    inkscape:version="0.91 r13725"
    sodipodi:docname="node_circle.svg"
-   inkscape:export-filename="C:\Users\kawahira\Documents\node_selected.png"
+   inkscape:export-filename="C:\Users\kawahira\Documents\Projects\procvis\public\images\node_alpha.png"
    inkscape:export-xdpi="45"
    inkscape:export-ydpi="45">
   <defs
      id="defs4">
+    <linearGradient
+       inkscape:collect="always"
+       id="linearGradient4214">
+      <stop
+         style="stop-color:#ffffff;stop-opacity:0"
+         offset="0"
+         id="stop4216" />
+      <stop
+         id="stop4222"
+         offset="0.80241936"
+         style="stop-color:#ffffff;stop-opacity:0" />
+      <stop
+         style="stop-color:#ffffff;stop-opacity:0.16862746"
+         offset="1"
+         id="stop4218" />
+    </linearGradient>
     <marker
        inkscape:stockid="Arrow1Lstart"
        orient="auto"
@@ -49,6 +66,16 @@
          style="fill-rule:evenodd;stroke:#ffffff;stroke-width:1pt;stroke-opacity:1;fill:#ffffff;fill-opacity:1"
          transform="scale(0.8) translate(12.5,0)" />
     </marker>
+    <radialGradient
+       inkscape:collect="always"
+       xlink:href="#linearGradient4214"
+       id="radialGradient4220"
+       cx="512"
+       cy="-512"
+       fx="512"
+       fy="-512"
+       r="496"
+       gradientUnits="userSpaceOnUse" />
   </defs>
   <sodipodi:namedview
      id="base"
@@ -57,11 +84,11 @@
      borderopacity="1.0"
      inkscape:pageopacity="0"
      inkscape:pageshadow="2"
-     inkscape:zoom="0.35"
-     inkscape:cx="-107.85714"
-     inkscape:cy="460"
+     inkscape:zoom="0.7"
+     inkscape:cx="405.79386"
+     inkscape:cy="484.03762"
      inkscape:document-units="px"
-     inkscape:current-layer="g4136"
+     inkscape:current-layer="layer3"
      showgrid="false"
      units="px"
      inkscape:window-width="1826"
@@ -113,9 +140,35 @@
        sodipodi:end="4.1887902"
        d="M 781.47156,-512 A 269.47156,269.47156 0 0 1 558.79325,-246.62232 269.47156,269.47156 0 0 1 258.77957,-419.8353 269.47156,269.47156 0 0 1 377.26422,-745.36921"
        sodipodi:open="true" />
+    <path
+       style="display:inline;opacity:0.95999995;fill:none;fill-opacity:1;stroke:#ffffff;stroke-width:30;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+       id="path4142-5-0"
+       transform="scale(1,-1)"
+       sodipodi:type="arc"
+       sodipodi:cx="519.01251"
+       sodipodi:cy="-504.17877"
+       sodipodi:rx="269.47156"
+       sodipodi:ry="269.47156"
+       sodipodi:start="3.8397244"
+       sodipodi:end="4.1887902"
+       d="m 312.58533,-677.39176 a 269.47156,269.47156 0 0 1 71.6914,-60.15623"
+       sodipodi:open="true" />
   </g>
   <g
-     style="display:inline"
+     inkscape:groupmode="layer"
+     id="layer3"
+     inkscape:label="alpha"
+     style="display:inline">
+    <circle
+       style="display:inline;opacity:0.95999995;fill:url(#radialGradient4220);fill-opacity:1;stroke:#ffffff;stroke-width:12;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+       id="path4142-4"
+       cx="512"
+       cy="-512"
+       r="490"
+       transform="scale(1,-1)" />
+  </g>
+  <g
+     style="display:none"
      transform="translate(0,-28.36216)"
      id="g4136"
      inkscape:groupmode="layer"
@@ -126,6 +179,6 @@
        cy="-540.36218"
        cx="512"
        id="circle4138"
-       style="opacity:0.95999995;fill:none;fill-opacity:1;stroke:#ffffff;stroke-width:32.1;stroke-miterlimit:4;stroke-dasharray:256.8,256.8;stroke-opacity:1;stroke-dashoffset:0" />
+       style="opacity:0.95999995;fill:none;fill-opacity:1;stroke:#ffffff;stroke-width:32.09999847;stroke-miterlimit:4;stroke-dasharray:256.8, 256.8;stroke-dashoffset:0;stroke-opacity:1" />
   </g>
 </svg>

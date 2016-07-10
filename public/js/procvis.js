@@ -357,8 +357,8 @@ function init_graph(graph, oldgraph) {
 // view
 var gl;
 
-var angleX = 20;
-var angleY = 20;
+var angleX = 0;
+var angleY = 0;
 var autoRotate = get_bool_param("rotation", false);
 var autoRefresh = get_bool_param("polling", false);
 var cameraPos = new GL.Vector(0,0,-20);
@@ -426,7 +426,6 @@ function init_gl() {
 		gl.enable( gl.DEPTH_TEST );
 		gl.loadIdentity();
 		gl.translate(cameraPos.x, cameraPos.y, cameraPos.z);
-		gl.rotate(30, 1, 0, 0);
 		gl.rotate(angleX, 1, 0, 0);
 		gl.rotate(angleY, 0, 1, 0);
 		gl.translate(-center.x, -center.y, -center.z);
@@ -620,9 +619,10 @@ window.addEventListener('load',(function(e){
 		if (target) {
 			console.log("click: " + target.name);
 			selected = target;
-			cameraPos.x = 0;
-			cameraPos.y = 0;
-			cameraPos.z = Math.max(-20, cameraPos.z);
+			var d = new GL.Vector(-cameraPos.x, -cameraPos.y, Math.max(-20, cameraPos.z) - cameraPos.z);
+			var dd = GL.Matrix.multiply(GL.Matrix.rotate(-angleY, 0, 1, 0), GL.Matrix.rotate(-angleX, 1, 0, 0)).transformVector(d);
+			cameraPos = cameraPos.add(d);
+			center = center.add(dd);
 		}
 	});
 
@@ -652,7 +652,11 @@ window.addEventListener('load',(function(e){
 			location.href = "?node=" + target.node;
 		}
 		if (target && target == selected && target.type == 'node') {
-			location.href = "?node=" + target.node;
+			var d = new GL.Vector(-cameraPos.x, -cameraPos.y, -cameraPos.z);
+			var dd = GL.Matrix.multiply(GL.Matrix.rotate(-angleY, 0, 1, 0), GL.Matrix.rotate(-angleX, 1, 0, 0)).transformVector(d);
+			cameraPos = cameraPos.add(d);
+			center = center.add(dd);
+			setTimeout(function(){location.href = "?node=" + target.node;}, 300);
 		}
 	});
 

@@ -20,9 +20,12 @@
   </script>
   <script id="fs" type="x-shader/x-fragment">
 	uniform sampler2D texture;
+	uniform sampler2D texture2;
 	uniform vec4 color;
+	uniform float texture2scale;
 	varying vec2 coord;
 	varying float depth;
+	const vec2 C = vec2(0.5,0.5);
 	void main() {
 		float r;
 		if (depth > 16.0) {
@@ -30,7 +33,11 @@
 		} else {
 			r = 1.0;
 		}
-		gl_FragColor = texture2D(texture, coord) * color * r;
+		if (texture2scale > 0.0) {
+			gl_FragColor = max(texture2D(texture2, (coord-C)/texture2scale+C), texture2D(texture, coord)) * color * r;
+		} else {
+			gl_FragColor = texture2D(texture, coord) * color * r;
+		}
 		if (gl_FragColor.a < 0.01) {
 			discard;
 		}

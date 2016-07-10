@@ -17,11 +17,11 @@ RubyからErlangのノードに[Distribution Protocol](http://www.erlang.org/doc
 1. gem install sinatra sinatra-contrib
 2. 適当なErlangアプリケーションを分散モードで起動(例: erl -sname hoge )
 3. rackup -p 2400
-4. ブラウザで開く http://localhost:2400/
+4. ブラウザで開く `http://localhost:2400/`
 
 操作
 
-- クリック: ノード選択
+- クリック: 選択
 - ダブルクリック: ノード詳細表示
 - 左ボタンドラッグ: カメラ回転
 - 中ボタンドラッグ: カメラ移動
@@ -33,7 +33,7 @@ RubyからErlangのノードに[Distribution Protocol](http://www.erlang.org/doc
 表示サンプル(静的ページです)
 
 - Cowboy http://binzume.github.io/erlprocvis/public/procs.html?procs=sample.json
-- RabbitMQ http://binzume.github.io/erlprocvis/public/procs.html?procs=sample.json
+- RabbitMQ http://binzume.github.io/erlprocvis/public/procs.html?procs=sample-mq.json
 
 
 ## Usage2

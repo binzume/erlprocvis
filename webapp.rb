@@ -72,6 +72,7 @@ class WebApp < Sinatra::Base
       end
       if params['deep'] == 'true'
         nodes = nodes.map{|node|
+            erl.connect(node.to_s) unless erl.nodes.include?(node.to_s)
             {name: node.to_s,
               process_count: erl.rpc_call(node, :erlang, :system_info, [:process_count]),
               memory: assoc_to_hash(erl.rpc_call(node, :erlang, :memory, [])),
@@ -129,7 +130,40 @@ class WebApp < Sinatra::Base
       JSON.generate({status: 'ok', processes: proc_infos})
   end
 
-  get '/nodes/:node/procs' do
+  get '/nodes/:node/procs' do # experimental
+      erl = settings.erl
+      node = params['node']
+      unless erl.nodes.include?(node)
+        erl.connect(node)
+      end
+      unless erl.nodes.include?(node)
+        raise('cannot_connect')
+      end
+
+      proc_infos1 = erl.eval(node, <<'ENDOFCODE')
+lists:map(fun(Pid)-> I=maps:from_list(
+  erlang:process_info(Pid, [initial_call, links, monitors, message_queue_len, total_heap_size, registered_name, trap_exit])),
+ IC=case maps:get(initial_call,I) of {proc_lib,_,_}->proc_lib:translate_initial_call(Pid); _IC->_IC end,
+ maps:merge(I,#{id => Pid, initial_call => IC}) end, erlang:processes()).
+ENDOFCODE
+      proc_infos1 = [] if proc_infos1.class == Erlang::Tuple # TODO error
+      proc_infos = proc_infos1.map{|infomap|
+        infomap[:alive] = true
+        infomap[:monitors] = infomap[:monitors].map{|m| m[1]}
+        infomap[:registered_name] = nil if infomap[:registered_name] == []
+        infomap[:trap_exit] = infomap[:trap_exit] == :true
+        ic = infomap[:initial_call]
+        if ic
+          infomap[:initial_call] = "#{ic[0]}:#{ic[1]}/#{ic[2]}"
+        end
+        infomap
+      }
+
+      content_type :json
+      JSON.generate({status: 'ok', processes: proc_infos})
+  end
+
+  get '/nodes/:node/procs_' do
       erl = settings.erl
       node = params['node']
       unless erl.nodes.include?(node)

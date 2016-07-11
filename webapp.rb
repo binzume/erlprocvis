@@ -141,15 +141,16 @@ class WebApp < Sinatra::Base
       end
 
       proc_infos1 = erl.eval(node, <<'ENDOFCODE')
-lists:map(fun(Pid)-> I=maps:from_list(
-  erlang:process_info(Pid, [initial_call, links, monitors, message_queue_len, total_heap_size, registered_name, trap_exit])),
- IC=case maps:get(initial_call,I) of {proc_lib,_,_}->proc_lib:translate_initial_call(Pid); _IC->_IC end,
- maps:merge(I,#{id => Pid, initial_call => IC}) end, erlang:processes()).
+lists:map(fun(Pid)->
+ case erlang:process_info(Pid, [initial_call, links, monitors, message_queue_len, total_heap_size, registered_name, trap_exit]) of
+  undefined -> #{id => Pid};
+  I-> IC=case lists:keysearch(initial_call,1, I) of {_,{proc_lib,_,_}}->proc_lib:translate_initial_call(Pid); _IC->_IC end,
+      maps:from_list([{id, Pid}, {initial_call, IC} | I]) end end, erlang:processes()).
 ENDOFCODE
-      proc_infos1 = [] if proc_infos1.class == Erlang::Tuple # TODO error
+      p proc_infos1  if proc_infos1.class == Erlang::Tuple # TODO error
       proc_infos = proc_infos1.map{|infomap|
-        infomap[:alive] = true
-        infomap[:monitors] = infomap[:monitors].map{|m| m[1]}
+        infomap[:alive] = infomap[:total_heap_size] != nil
+        infomap[:monitors] = infomap[:monitors].map{|m| m[1]} if infomap[:monitors]
         infomap[:registered_name] = nil if infomap[:registered_name] == []
         infomap[:trap_exit] = infomap[:trap_exit] == :true
         ic = infomap[:initial_call]

@@ -133,13 +133,13 @@ function on_nodes_result(result) {
 		console.log("on_nodes_result status:" + result.status);
 		return;
 	}
-	graph = new Graph();
+	var g = new Graph();
 
 	var ernodes = result.nodes;
 	for (var i=0; i<ernodes.length; i++) {
 		var node = ernodes[i];
-		graph.addNode({type: "node", name: node.name, node: node.name, weight: 2.0, weight2: 1.0});
-/*
+		g.addNode({type: "node", name: node.name, node: node.name, weight: 2.0, weight2: 1.0});
+//*
 		// TODO
 		var code = "{lists:usort(lists:foldl(fun(P,A)->{links,L} = process_info(P,links),lists:map(fun(P)->node(P) end,L)++A end,[],processes())),"
                  + " lists:usort(lists:foldl(fun(P,A)->{monitors,M} = process_info(P,monitors),"
@@ -147,7 +147,7 @@ function on_nodes_result(result) {
                  + " lists:usort(lists:foldl(fun(P,A)->{monitored_by,L} = process_info(P,monitored_by),lists:map(fun(P)->node(P) end,L)++A end,[],processes()))}.";
 		var formData = new FormData();
 		formData.append("code", code);
-		var nodeindex = graph.nodeindex;
+		var nodeindex = g.nodeindex;
 		var xhr = requestJson('POST', "/nodes/" + node.name + "/exec", function(result) {
 			if (result && result.status=='ok') {
 				console.log(result.node, result.result);
@@ -155,7 +155,7 @@ function on_nodes_result(result) {
 				var nn = result.result[1]; // monitor
 				for (var j=0; j<nn.length; j++) {
 					if (nn[j] != n && nodeindex[n]!=null && nodeindex[nn[j]]!=null) {
-						graph.addEdge({from: nodeindex[n], to: nodeindex[nn[j]], weight: 0.1, len: Math.sqrt(graph.nodes.length)*2+2, type: "monitor", line_uv: 0.5});
+						g.addEdge({from: nodeindex[n], to: nodeindex[nn[j]], weight: 0.05, len: Math.sqrt(graph.nodes.length)*2+2, type: "monitor", line_uv: 0.5});
 					}
 				}
 			}
@@ -164,7 +164,7 @@ function on_nodes_result(result) {
 		xhr.send(formData);
 // */
 	}
-
+	graph = g;
 	init_graph(graph, null);
 }
 
@@ -656,7 +656,7 @@ window.addEventListener('load',(function(e){
 			var dd = GL.Matrix.multiply(GL.Matrix.rotate(-angleY, 0, 1, 0), GL.Matrix.rotate(-angleX, 1, 0, 0)).transformVector(d);
 			cameraPos = cameraPos.add(d);
 			center = center.add(dd);
-			setTimeout(function(){location.href = "?node=" + target.node;}, 300);
+			setTimeout(function(){location.href = "?node=" + target.node;}, 400);
 		}
 	});
 

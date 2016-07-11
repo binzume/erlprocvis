@@ -333,7 +333,7 @@ module Erlang
       @msgqueue[from.id] = Queue.new
       @nodes[node.to_s].send(Tuple[CTRL_REG_SEND, from, :'', :rex], msg)
       res = nil
-      timeout(1.0) do
+      ::Timeout.timeout(1.0) do
         res = @msgqueue[from.id].pop # wait for response
       end
       @msgqueue.delete(from.id)

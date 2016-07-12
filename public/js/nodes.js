@@ -32,11 +32,16 @@ function on_nodes_result(result) {
 				element('td', '-'),
 				element('td', '-'),
 				element('td', '-'),
-				element('td', '-', {id: 'status_' + nodename}),
-				element('td', element('a', 'View procs', {href: "procs.html?node=" + nodes[i]}))
+				element('td', '-', {id: 'status_' + nodename})
 			]);
 		row.id = 'node_' + nodes[i];
 		element_append($("#nodes"),row);
+	}
+
+	if (nodes.length == 1) {
+		$("#view_procs_link").href = "procs.html?node=" + nodes[0];
+	} else {
+		$("#view_procs_link").href = "procs.html";
 	}
 }
 
@@ -63,8 +68,7 @@ function on_node_status_result(nodename, result) {
 				element('td', number_format(node.memory.binary), {className:'number'}),
 				element('td', number_format(node.memory.atom), {className:'number'}),
 				element('td', number_format(node.memory.ets), {className:'number'}),
-				element('td', "ok", {id:'status_'+nodename,title:result.timestamp.substring(0,19)}),
-				element('td', element('a', 'View procs', {href: "procs.html?node=" + node.name}))
+				element('td', "ok", {id:'status_'+nodename,title:result.timestamp.substring(0,19)})
 			]);
 		} else {
 			document.getElementById('status_' + nodename).innerText = "ERR";

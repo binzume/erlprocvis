@@ -190,12 +190,6 @@ function on_procs_result(result) {
 		if (proc.message_queue_len > 0) {
 			color = [1.0, 1.0, 0.3, 1.0];
 		}
-		if (proc.registered_name && proc.registered_name.length == 0) {
-			proc.registered_name = null; // avoid api bug...
-		}
-		if (proc.trap_exit && proc.trap_exit == "false") {
-			proc.trap_exit = false; // avoid api bug...
-		}
 		graph.addNode({type: "proc", name: proc.id, proc: proc, weight: 1.0, weight2: Math.max(1,proc.links.length), color: color});
 	}
 
@@ -550,7 +544,6 @@ function init_gl() {
 // event
 var button = -1;
 var drag = false;
-var dragX = 0, dragY = 0;
 
 
 function node_by_pos(x, y) {
@@ -604,14 +597,6 @@ window.addEventListener('load',(function(e){
 			e.preventDefault();
 	});
 
-	gl.canvas.addEventListener('touchstart', function(e){
-		e.preventDefault();
-		drag = true;
-		button = e.targetTouches.length;
-		dragX = e.targetTouches[0].clientX;
-		dragY = e.targetTouches[0].clientY;
-	});
-
 	gl.canvas.addEventListener('click', function(e){
 		if (drag) return;
 		e.preventDefault();
@@ -660,22 +645,45 @@ window.addEventListener('load',(function(e){
 		}
 	});
 
-	document.body.addEventListener('touchend', function(e){
+	var dragX = 0, dragY = 0;
+	gl.canvas.addEventListener('touchstart', function(e){
+		e.preventDefault();
 		drag = false;
+		button = e.targetTouches.length;
+		dragX = e.targetTouches[0].clientX;
+		dragY = e.targetTouches[0].clientY;
+	});
+
+	document.body.addEventListener('touchend', function(e){
+		if (!drag) {
+			var target = node_by_pos(dragX, dragY);
+			if (target) {
+				console.log("click: " + target.name);
+				selected = target;
+				var d = new GL.Vector(-cameraPos.x, -cameraPos.y, Math.max(-20, cameraPos.z) - cameraPos.z);
+				var dd = GL.Matrix.multiply(GL.Matrix.rotate(-angleY, 0, 1, 0), GL.Matrix.rotate(-angleX, 1, 0, 0)).transformVector(d);
+				cameraPos = cameraPos.add(d);
+				center = center.add(dd);
+			}
+		}
+		drag = false;
+		button = -1;
 	});
 
 	document.body.addEventListener('touchmove', function(e){
 		if (drag) {
 			if (button == 1) {
-				cameraPos.x -= (e.targetTouches[0].clientX - dragX) * 0.01;
-				cameraPos.y += (e.targetTouches[0].clientY - dragY) * 0.01;
-			} else if (button == 2) {
+				angleY += (e.targetTouches[0].clientX - dragX) * 0.2;
 				cameraPos.z -= (e.targetTouches[0].clientY - dragY) * 0.01;
-				cameraPos.z = Math.max(cameraPos.z, 0.1);
+				cameraPos.z = Math.min(cameraPos.z, -0.1);
+			} else if (button == 2) {
+				cameraPos.x += (e.targetTouches[0].clientX - dragX) * 0.01;
+				cameraPos.y -= (e.targetTouches[0].clientY - dragY) * 0.01;
 			}
 			dragX = e.targetTouches[0].clientX;
 			dragY = e.targetTouches[0].clientY;
 		}
+		drag = true;
 	});
 
 	gl.canvas.addEventListener('mousewheel', function(e){

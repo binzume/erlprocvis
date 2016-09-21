@@ -18,6 +18,7 @@ RubyからErlangのノードに[Distribution Protocol](http://www.erlang.org/doc
 2. 適当なErlangアプリケーションを分散モードで起動(例: erl -sname hoge )
 3. rackup -p 2400
 4. ブラウザで開く `http://localhost:2400/`
+5. 接続しているノードの情報が表示されるので [WebGL View] リンクをクリック
 
 操作
 
@@ -29,6 +30,8 @@ RubyからErlangのノードに[Distribution Protocol](http://www.erlang.org/doc
 - R: リロード
 - T: 自動回転on/off
 - Y: 自動リロードon/off
+- ASDW or 矢印キー: 移動
+- PgUp/PgDown: 明るさ調整
 
 表示サンプル(静的ページです)
 

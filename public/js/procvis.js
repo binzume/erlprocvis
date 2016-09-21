@@ -361,6 +361,7 @@ var target_center = new GL.Vector(0,0,0);
 var selected = null;
 var rot = 0;
 var autoRefreshT = 0;
+var shaderDepthScale = 0.1;
 
 
 function init_gl() {
@@ -375,6 +376,7 @@ function init_gl() {
 	var edgelines = new GL.Mesh({ coords: true });
 	var nodeSphere = new GL.Mesh.sphere({detail: 4 }).computeWireframe();
 	var mesh = GL.Mesh.plane({coords: true});
+	shader.uniforms({depth_scale: shaderDepthScale});
 
 	gl.onupdate = function(seconds) {
 		rot += 30 * seconds;
@@ -423,6 +425,7 @@ function init_gl() {
 		gl.rotate(angleX, 1, 0, 0);
 		gl.rotate(angleY, 0, 1, 0);
 		gl.translate(-center.x, -center.y, -center.z);
+		shader.uniforms({depth_scale: shaderDepthScale});
 
 		tex01.bind(1);
 		tex02.bind(2);
@@ -705,17 +708,40 @@ window.addEventListener('load',(function(e){
 			autoRefresh = !autoRefresh;;
 			new Toast(null, "Polling: " + autoRefresh).show();
 		}
-		if (e.keyCode == 'W'.charCodeAt(0)) {
-			cameraPos.z = Math.min(cameraPos.z + 0.5, -0.1);
+		if (e.keyCode == 'A'.charCodeAt(0) || e.keyCode == 37) {
+			if (e.shiftKey) {
+				cameraPos.x += 0.5;
+			} else {
+				angleY += 1.0;
+			}
 		}
-		if (e.keyCode == 'S'.charCodeAt(0)) {
-			cameraPos.z = Math.max(cameraPos.z - 0.5, -150);
+		if (e.keyCode == 'D'.charCodeAt(0) || e.keyCode == 39) {
+			if (e.shiftKey) {
+				cameraPos.x -= 0.5;
+			} else {
+				angleY -= 1.0;
+			}
 		}
-		if (e.keyCode == 'A'.charCodeAt(0)) {
-			angleY += 1.0;
+		if (e.keyCode == 'W'.charCodeAt(0) || e.keyCode == 38) {
+			if (e.shiftKey) {
+				cameraPos.y -= 0.5;
+			} else {
+				cameraPos.z = Math.min(cameraPos.z + 0.5, -0.1);
+			}
 		}
-		if (e.keyCode == 'D'.charCodeAt(0)) {
-			angleY -= 1.0;
+		if (e.keyCode == 'S'.charCodeAt(0) || e.keyCode == 40) {
+			if (e.shiftKey) {
+				cameraPos.y += 0.5;
+			} else {
+				cameraPos.z = Math.max(cameraPos.z - 0.5, -150);
+			}
+		}
+		if (e.keyCode == 33) { // PageUp
+			shaderDepthScale -= 0.01;
+			shaderDepthScale = Math.max(shaderDepthScale, 0.001);
+		}
+		if (e.keyCode == 34) { // PageDown
+			shaderDepthScale += 0.01;
 		}
 	});
 
